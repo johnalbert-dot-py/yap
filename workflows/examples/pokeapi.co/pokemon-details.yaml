@@ -1,0 +1,39 @@
+version: 1
+name: pokemon-details
+description: Fetch known Pokémon records without scraping their identifiers first
+
+input:
+  pokemon:
+    file: inputs/pokemon.yaml
+    key: my-pokemon
+    fields:
+      id: number
+      name: string
+      type: string
+
+scrapers:
+  pokemon-json:
+    format: json
+    fields:
+      name:
+        path: name
+      id:
+        path: id
+
+data:
+  pokemon_details:
+    name: Pokémon details
+    steps:
+      - id: get-pokemon-stats
+        each: input.pokemon
+        request:
+          method: GET
+          url: "https://pokeapi.co/api/v2/pokemon/{{ input.pokemon.id }}"
+        scrape:
+          - id: stats
+            selector: "$"
+            using: pokemon-json
+        output: "Got {{ input.pokemon.name }} -> {{ stats.name }}"
+
+logging:
+  level: INFO

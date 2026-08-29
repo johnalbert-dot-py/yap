@@ -1,0 +1,10 @@
+my-pokemon:
+  - id: 1
+    name: Bulbasaur
+    type: Grass
+  - id: 2
+    name: Ivysaur
+    type: Grass
+  - id: 3
+    name: Venusaur
+    type: Grass

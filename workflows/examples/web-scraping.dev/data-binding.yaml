@@ -1,0 +1,43 @@
+version: 1.0
+name: data-binding
+description: "Data Binding between steps from https://web-scraping.dev/"
+
+scrapers:
+  href-scraper:
+    fields:
+      next_page:
+        selector: "span[data-href]"
+        getter:
+          type: attribute
+          value: "data-href"
+  target-href-scraper:
+    fields:
+      target:
+        selector: ""
+
+data:
+  via-attribute:
+    name: "Get the next page href from first page attribute"
+    steps:
+      - id: initial-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev/data-href"
+        scrape:
+          - id: href
+            selector: "body"
+            using: href-scraper
+        output: "Got the actual href from span -> {{ href.next_page }}"
+
+      - id: target-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev{{ initial-page.href.next_page }}"
+        scrape:
+          - id: target-href
+            selector: "body"
+            using: target-href-scraper
+        output: "Got the target href from body -> {{ target-href.target }}"
+
+logging:
+  level: INFO

@@ -1,0 +1,38 @@
+version: 1.0
+name: base-tag
+description: "Base and child hrefs from https://web-scraping.dev/base-tag"
+
+scrapers:
+  base-link:
+    fields:
+      base:
+        getter:
+          type: attribute
+          value: "href"
+  child-link:
+    fields:
+      child:
+        getter:
+          type: attribute
+          value: "href"
+
+data:
+  base_tag:
+    name: "Base Tag"
+    steps:
+      - id: base-tag-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev/base-tag"
+        scrape:
+          - id: base
+            selector: "base"
+            many: false
+            using: base-link
+          - id: child
+            selector: "a"
+            many: false
+            using: child-link
+
+logging:
+  level: INFO

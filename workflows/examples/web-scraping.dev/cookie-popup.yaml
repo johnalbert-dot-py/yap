@@ -1,0 +1,26 @@
+version: 1.0
+name: cookie-popup
+description: "Cookie modal from https://web-scraping.dev/login?cookies="
+
+scrapers:
+  cookie-modal:
+    fields:
+      title:
+        selector: ".modal-title"
+
+data:
+  cookie_popup:
+    name: "Cookie Popup"
+    steps:
+      - id: login-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev/login?cookies="
+        scrape:
+          - id: cookie-modal
+            selector: "#cookieModal"
+            many: false
+            using: cookie-modal
+
+logging:
+  level: INFO

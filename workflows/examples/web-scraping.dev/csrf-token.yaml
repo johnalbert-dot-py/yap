@@ -1,0 +1,28 @@
+version: 1.0
+name: csrf-token
+description: "CSRF token from https://web-scraping.dev/product/1"
+
+scrapers:
+  csrf-token:
+    fields:
+      token:
+        getter:
+          type: attribute
+          value: "value"
+
+data:
+  csrf_token:
+    name: "CSRF Token"
+    steps:
+      - id: product-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev/product/1"
+        scrape:
+          - id: csrf-token
+            selector: 'input[type="hidden"][name="csrf-token"]'
+            many: false
+            using: csrf-token
+
+logging:
+  level: INFO

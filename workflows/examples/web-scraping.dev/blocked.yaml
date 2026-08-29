@@ -1,0 +1,25 @@
+version: 1.0
+name: blocked
+description: "Blocked page title from https://web-scraping.dev/blocked"
+
+scrapers:
+  heading:
+    fields:
+      text: {}
+
+data:
+  blocked:
+    name: "Blocked Page"
+    steps:
+      - id: blocked-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev/blocked"
+        scrape:
+          - id: heading
+            selector: "h1"
+            many: false
+            using: heading
+
+logging:
+  level: INFO

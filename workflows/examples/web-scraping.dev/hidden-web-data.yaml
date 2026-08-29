@@ -1,0 +1,25 @@
+version: 1.0
+name: hidden-web-data
+description: "Hidden review data from https://web-scraping.dev/product/1"
+
+scrapers:
+  reviews-data:
+    fields:
+      json: {}
+
+data:
+  hidden_data:
+    name: "Hidden Web Data"
+    steps:
+      - id: product-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev/product/1"
+        scrape:
+          - id: reviews
+            selector: "script#reviews-data"
+            many: false
+            using: reviews-data
+
+logging:
+  level: INFO

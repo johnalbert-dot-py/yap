@@ -1,0 +1,54 @@
+version: 1.0
+name: get-paginated-cars
+description: Paginated cars from https://webscraper.io
+
+scrapers:
+  car-detail:
+    fields:
+      title:
+        selector: "h3.card-title a"
+      description:
+        selector: "p.description"
+      year:
+        selector: "p.card-text"
+        index: 1
+      country:
+        selector: "p.card-text"
+        index: 2
+      mileage:
+        selector: "p.card-text"
+        index: 3
+
+data:
+  list_of_cars:
+    name: "List of Cars"
+    steps:
+      - id: initial-page
+        request:
+          method: GET
+          url: "https://webscraper.io/test-sites/load-more"
+        scrape:
+          - id: cars
+            selector: ".test-sites-card .card-body"
+            many: true
+            using: car-detail
+        output: "Found from initial -> {{ cars.title }}"
+
+      - id: remaining-pages
+        pagination:
+          next: page
+          start: 2
+          max: 50
+          stop_when: [empty_items]
+        request:
+          method: GET
+          url: "https://webscraper.io/test-sites-ajax?page={{ pagination.next }}"
+        scrape:
+          - id: cars
+            selector: ".test-sites-card .card-body"
+            many: true
+            using: car-detail
+        output: "Found from {{ pagination.next }} -> {{ cars.title }}"
+
+output:
+  use-timestamps: true

@@ -1,0 +1,50 @@
+version: 1.0
+name: iframe-login
+description: "Iframe login form metadata from https://web-scraping.dev/login/iframe"
+
+scrapers:
+  iframe:
+    fields:
+      src:
+        getter:
+          type: attribute
+          value: "src"
+  login-form:
+    fields:
+      username:
+        selector: 'input[name="username"]'
+        getter:
+          type: attribute
+          value: "placeholder"
+      password:
+        selector: 'input[name="password"]'
+        getter:
+          type: attribute
+          value: "placeholder"
+
+data:
+  iframe_login:
+    name: "Iframe Login"
+    steps:
+      - id: initial-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev/login/iframe"
+        scrape:
+          - id: iframe
+            selector: "iframe#login-frame"
+            many: false
+            using: iframe
+
+      - id: login-form
+        request:
+          method: GET
+          url: "https://web-scraping.dev{{ initial-page.iframe.src }}"
+        scrape:
+          - id: form
+            selector: "body"
+            many: false
+            using: login-form
+
+logging:
+  level: INFO

@@ -1,0 +1,41 @@
+version: 1.0
+name: product-markup
+description: "Product markup from https://web-scraping.dev/product/1"
+
+scrapers:
+  product-detail:
+    fields:
+      title:
+        selector: "h3.product-title"
+      description:
+        selector: "p.product-description"
+      price:
+        selector: "span.product-price"
+        index: 1
+  image:
+    fields:
+      src:
+        getter:
+          type: attribute
+          value: "src"
+
+data:
+  product:
+    name: "Product Markup"
+    steps:
+      - id: product-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev/product/1"
+        scrape:
+          - id: product
+            selector: "body"
+            many: false
+            using: product-detail
+          - id: images
+            selector: "img.product-img"
+            many: true
+            using: image
+
+logging:
+  level: INFO

@@ -1,0 +1,99 @@
+version: 1.0
+name: sauce-demo-shop
+description: Session, add variants from the input file, GET /cart.js to prove the cookie cart, then POST checkout and print the landing URL. Cart totals are Shopify cents, not checkout shipping. Does not fill checkout-web or take payment.
+
+input:
+  product-item:
+    file: inputs/sauce-demo-items.yaml
+    key: items
+    fields:
+      id: number
+
+scrapers:
+  get-cart-response:
+    format: json
+    fields:
+      key:
+        path: key
+      id:
+        path: id
+      name:
+        path: title
+  cart-line:
+    format: json
+    fields:
+      title:
+        path: title
+      quantity:
+        path: quantity
+      price:
+        path: price
+      variant_id:
+        path: variant_id
+  cart-totals:
+    format: json
+    fields:
+      item_count:
+        path: item_count
+      total_price:
+        path: total_price
+      currency:
+        path: currency
+
+data:
+  checkout-transaction:
+    name: "Cart session and checkout redirect"
+    steps:
+      - id: warm
+        request:
+          method: GET
+          url: "https://sauce-demo.myshopify.com/"
+          headers:
+            User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+        scrape: []
+
+      - id: add-to-cart
+        each: input.product-item
+        request:
+          method: POST
+          url: "https://sauce-demo.myshopify.com/cart/add.js"
+          headers:
+            User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+          body:
+            id: "{{ input.product-item.id }}"
+        scrape:
+          - id: cart-response
+            selector: "$"
+            using: get-cart-response
+        output: "Added to cart -> {{ cart-response.name }} -- {{ cart-response.key }}"
+
+      - id: read-cart
+        request:
+          method: GET
+          url: "https://sauce-demo.myshopify.com/cart.js"
+          headers:
+            User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+        scrape:
+          - id: cart-lines
+            selector: items
+            using: cart-line
+          - id: cart-totals
+            selector: "$"
+            using: cart-totals
+        output: "Cart {{ cart-totals.item_count }} items {{ cart-totals.currency }} {{ cart-totals.total_price }} -> {{ cart-lines.title }}"
+
+      - id: checkout
+        request:
+          method: POST
+          url: "https://sauce-demo.myshopify.com/cart"
+          headers:
+            User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
+          body:
+            "updates[]": 1
+            note: ""
+            checkout: "Check Out"
+        scrape: []
+        output: "Current URL -> {{ response.url }} {{ response.status }}"
+
+logging:
+  level: DEBUG

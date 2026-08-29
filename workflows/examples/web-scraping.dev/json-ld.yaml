@@ -1,0 +1,25 @@
+version: 1.0
+name: json-ld
+description: "JSON-LD from https://web-scraping.dev/linked-data"
+
+scrapers:
+  linked-data:
+    fields:
+      ldjson: {}
+
+data:
+  linked_data:
+    name: "JSON-LD"
+    steps:
+      - id: linked-data-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev/linked-data"
+        scrape:
+          - id: linked-data
+            selector: 'script[type="application/ld+json"]'
+            many: false
+            using: linked-data
+
+logging:
+  level: INFO

@@ -1,0 +1,75 @@
+version: 1.0
+name: graphql-reviews
+description: "GraphQL reviews from https://web-scraping.dev/api/graphql"
+
+scrapers:
+  review:
+    format: json
+    fields:
+      rid:
+        path: node.rid
+      text:
+        path: node.text
+      rating:
+        path: node.rating
+      date:
+        path: node.date
+  page-info:
+    format: json
+    fields:
+      endCursor:
+        path: endCursor
+
+data:
+  reviews:
+    name: Latest reviews
+    steps:
+      - id: graphql
+        pagination:
+          next: cursor
+          from: page.endCursor
+          max: 5
+          stop_when: [empty_items]
+        request:
+          method: POST
+          url: "https://web-scraping.dev/api/graphql"
+          headers:
+            Content-Type: application/json
+            Accept: application/json
+          body:
+            query: |
+              query GetReviews($first: Int, $after: String) {
+                reviews(first: $first, after: $after) {
+                  edges {
+                    node {
+                      rid
+                      text
+                      rating
+                      date
+                    }
+                    cursor
+                  }
+                  pageInfo {
+                    startCursor
+                    endCursor
+                    hasPreviousPage
+                    hasNextPage
+                  }
+                }
+              }
+            variables:
+              first: 20
+              after: "{{ pagination.next }}"
+        scrape:
+          - id: reviews
+            selector: data.reviews.edges
+            many: true
+            using: review
+          - id: page
+            selector: data.reviews.pageInfo
+            many: false
+            using: page-info
+        output: "Got reviews -> {{ reviews.text }}"
+
+logging:
+  level: INFO

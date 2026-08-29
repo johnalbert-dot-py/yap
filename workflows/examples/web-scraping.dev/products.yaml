@@ -1,0 +1,50 @@
+version: 1.0
+name: products
+description: "Paginated products from https://web-scraping.dev/products"
+
+scrapers:
+  product:
+    fields:
+      title:
+        selector: "h3 a"
+      href:
+        selector: "h3 a"
+        getter:
+          type: attribute
+          value: "href"
+      description:
+        selector: ".short-description"
+      price:
+        selector: ".price"
+
+data:
+  products:
+    name: "Products"
+    steps:
+      - id: initial-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev/products"
+        scrape:
+          - id: products
+            selector: "div.row.product"
+            many: true
+            using: product
+
+      - id: remaining-pages
+        pagination:
+          next: page
+          start: 2
+          max: 5
+          stop_when: [empty_items]
+        request:
+          method: GET
+          url: "https://web-scraping.dev/products?page={{ pagination.next }}"
+        scrape:
+          - id: products
+            selector: "div.row.product"
+            many: true
+            using: product
+
+logging:
+  level: INFO

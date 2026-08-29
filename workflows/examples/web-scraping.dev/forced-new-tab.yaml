@@ -1,0 +1,29 @@
+version: 1.0
+name: forced-new-tab
+description: "Static new-tab links from https://web-scraping.dev/reviews"
+
+scrapers:
+  new-tab-link:
+    fields:
+      href:
+        getter:
+          type: attribute
+          value: "href"
+      text: {}
+
+data:
+  new_tab_links:
+    name: "Forced New Tab"
+    steps:
+      - id: reviews-page
+        request:
+          method: GET
+          url: "https://web-scraping.dev/reviews"
+        scrape:
+          - id: links
+            selector: 'a[target="_blank"]'
+            many: true
+            using: new-tab-link
+
+logging:
+  level: INFO
