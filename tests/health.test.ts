@@ -158,4 +158,23 @@ describe("compareHealth", () => {
     expect(compareHealth(previous, previous).status).toBe("none");
     expect(formatDriftReport(compareHealth(previous, previous))).toBe("extraction drift  none");
   });
+
+  it("marks severe drift when a required field drops to a zero-row scrape", () => {
+    const current: Health = {
+      status: "failed",
+      fields: [
+        {
+          scraperId: "car-detail",
+          field: "year",
+          attempted: 0,
+          matched: 0,
+          missing: 0,
+          required: true,
+        },
+      ],
+    };
+    const drift = compareHealth(previous, current);
+    expect(drift.status).toBe("severe");
+    expect(drift.fields[0]?.currentRate).toBe(0);
+  });
 });

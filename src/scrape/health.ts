@@ -98,9 +98,9 @@ export const toHealth = (stats: Stats): Health => {
 
 export const processExitCode = (status: ExtractionStatus): number => (status === "failed" ? 1 : 0);
 
-export const matchRate = (field: FieldStats): number | undefined => {
+export const matchRate = (field: FieldStats): number => {
   if (field.attempted === 0) {
-    return undefined;
+    return 0;
   }
   return field.matched / field.attempted;
 };
@@ -137,9 +137,6 @@ export const compareHealth = (previous: Health, current: Health): DriftReport =>
     }
     const previousRate = matchRate(prior);
     const currentRate = matchRate(field);
-    if (previousRate === undefined || currentRate === undefined) {
-      continue;
-    }
     if (previousRate >= SEVERE_PREVIOUS && currentRate <= SEVERE_CURRENT) {
       fields.push({
         scraperId: field.scraperId,
