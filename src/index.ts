@@ -1,4 +1,4 @@
-export { HttpTransportError, StepExecutionError, WorkFlowValidationError } from "./error.js";
+export { HttpTransportError, StepExecutionError, WorkflowValidationError } from "./error.js";
 export { loadWorkflow, loadWorkflowFromFile } from "./workflow/load.js";
 export { executeWorkflow } from "./runtime/execute.js";
 export type { Deps, StepHttpLog, StepProgress, WorkflowRun } from "./runtime/execute.js";

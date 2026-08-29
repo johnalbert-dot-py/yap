@@ -8,7 +8,7 @@ import {
   runWorkflowFile,
   summarizeWorkflow,
 } from "../src/cli/actions.js";
-import { WorkFlowValidationError } from "../src/error.js";
+import { WorkflowValidationError } from "../src/error.js";
 import type { HttpClient, HttpRequest } from "../src/http/client.js";
 import type { StepHttpLog } from "../src/runtime/execute.js";
 import { parseHtml } from "../src/scrape/html.js";
@@ -147,7 +147,7 @@ describe("createWorkflow", () => {
     const dir = mkdtempSync(join(tmpdir(), "yap-create-"));
     try {
       createWorkflow("demo-cars", "", 1.0, dir);
-      expect(() => createWorkflow("demo-cars", "", 1.0, dir)).toThrow(WorkFlowValidationError);
+      expect(() => createWorkflow("demo-cars", "", 1.0, dir)).toThrow(WorkflowValidationError);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

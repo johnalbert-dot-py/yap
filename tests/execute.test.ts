@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { HttpTransportError, StepExecutionError, WorkFlowValidationError } from "../src/error.js";
+import { HttpTransportError, StepExecutionError, WorkflowValidationError } from "../src/error.js";
 import type { HttpClient, HttpRequest } from "../src/http/client.js";
 import { executeWorkflow, type StepHttpLog, type StepProgress } from "../src/runtime/execute.js";
 import { parseHtml } from "../src/scrape/html.js";
@@ -645,7 +645,7 @@ data: {}
 `);
 
     await expect(executeWorkflow(workflow, { http: mockHttp(), parseHtml })).rejects.toBeInstanceOf(
-      WorkFlowValidationError,
+      WorkflowValidationError,
     );
     await expect(executeWorkflow(workflow, { http: mockHttp(), parseHtml })).rejects.toMatchObject({
       message: 'Missing required input "ids"',
@@ -663,7 +663,7 @@ data: {}
 `);
     await expect(
       executeWorkflow(workflow, { http: mockHttp(), parseHtml, inputs: { ids: undefined } }),
-    ).rejects.toBeInstanceOf(WorkFlowValidationError);
+    ).rejects.toBeInstanceOf(WorkflowValidationError);
   });
 
   it("rejects an interpolated request that is no longer a valid HTTP request", async () => {

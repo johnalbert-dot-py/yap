@@ -2,17 +2,17 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { WorkFlowValidationError } from "../src/error.js";
+import { WorkflowValidationError } from "../src/error.js";
 import { loadWorkflow } from "../src/workflow/load.js";
 import { timeoutToMs } from "../src/workflow/schema.js";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 
-const captureValidationError = (yaml: string): WorkFlowValidationError => {
+const captureValidationError = (yaml: string): WorkflowValidationError => {
   try {
     loadWorkflow(yaml);
   } catch (error) {
-    if (error instanceof WorkFlowValidationError) {
+    if (error instanceof WorkflowValidationError) {
       return error;
     }
     throw error;

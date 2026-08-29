@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { StepExecutionError, WorkFlowValidationError } from "./error.js";
+import { StepExecutionError, WorkflowValidationError } from "./error.js";
 import { runInteractiveCli } from "./cli/interactive.js";
 import { parseInputArgs } from "./input/argv.js";
 import { createWorkflow, runWorkflowFile, summarizeWorkflow } from "./cli/actions.js";
@@ -51,7 +51,7 @@ const printStepFailed = (error: StepExecutionError) => {
 };
 
 const fail = (error: unknown): never => {
-  if (error instanceof WorkFlowValidationError) {
+  if (error instanceof WorkflowValidationError) {
     console.error("YAP_WORKFLOW_INVALID");
     console.error("");
     console.error(error.message);

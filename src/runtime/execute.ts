@@ -1,4 +1,4 @@
-import { HttpTransportError, StepExecutionError, WorkFlowValidationError } from "../error.js";
+import { HttpTransportError, StepExecutionError, WorkflowValidationError } from "../error.js";
 import { DEFAULT_REQUEST_TIMEOUT_MS, type HttpClient, type HttpRequest } from "../http/client.js";
 import type { ResolvedInputs } from "../input/resolve.js";
 import { interpolate, renderStepOutput } from "../interpolate.js";
@@ -523,7 +523,7 @@ const executeDataset = async (
 ): Promise<Record<string, Record<string, unknown>[]>> => {
   const dataset = workflow.data[datasetId];
   if (!dataset) {
-    throw new WorkFlowValidationError({
+    throw new WorkflowValidationError({
       message: `Unknown dataset "${datasetId}"`,
     });
   }
@@ -541,7 +541,7 @@ export const executeWorkflow = async (
   const inputs = deps.inputs ?? {};
   for (const inputId of Object.keys(workflow.input)) {
     if (!Object.hasOwn(inputs, inputId) || inputs[inputId] === undefined) {
-      throw new WorkFlowValidationError({
+      throw new WorkflowValidationError({
         message: `Missing required input "${inputId}"`,
       });
     }

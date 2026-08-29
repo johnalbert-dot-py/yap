@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { WorkFlowValidationError } from "../src/error.js";
+import { WorkflowValidationError } from "../src/error.js";
 import { resolveInputs } from "../src/input/resolve.js";
 import type { WorkflowInput } from "../src/workflow/types.js";
 
@@ -129,7 +129,7 @@ describe("resolveInputs", () => {
         cliValues: {},
         readFile: () => "",
       }),
-    ).rejects.toBeInstanceOf(WorkFlowValidationError);
+    ).rejects.toBeInstanceOf(WorkflowValidationError);
   });
 
   it("fails when a file record omits a declared field", async () => {

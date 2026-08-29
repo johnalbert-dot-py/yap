@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WorkFlowValidationError } from "../src/error.js";
+import { WorkflowValidationError } from "../src/error.js";
 import { parseInputArgs } from "../src/input/argv.js";
 
 describe("parseInputArgs", () => {
@@ -13,7 +13,7 @@ describe("parseInputArgs", () => {
   });
 
   it("rejects malformed input flags", () => {
-    expect(() => parseInputArgs(["--input", "ids"])).toThrow(WorkFlowValidationError);
-    expect(() => parseInputArgs(["--unknown", "ids=1"])).toThrow(WorkFlowValidationError);
+    expect(() => parseInputArgs(["--input", "ids"])).toThrow(WorkflowValidationError);
+    expect(() => parseInputArgs(["--unknown", "ids=1"])).toThrow(WorkflowValidationError);
   });
 });

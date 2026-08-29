@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { load } from "js-yaml";
-import { WorkFlowValidationError } from "../error.js";
+import { WorkflowValidationError } from "../error.js";
 import { workflowSchema } from "./schema.js";
 import type { WorkflowSchema } from "./types.js";
 
@@ -14,7 +14,7 @@ const formatZodError = (error: { issues: { path: PropertyKey[]; message: string 
 
 const parseWorkflow = (raw: unknown): WorkflowSchema => {
   if (typeof raw === "string") {
-    throw new WorkFlowValidationError({
+    throw new WorkflowValidationError({
       message:
         "Invalid workflow: YAML parsed as a string, not an object. loadWorkflow() expects file contents, not a path. Use loadWorkflowFromFile(path).",
     });
@@ -22,7 +22,7 @@ const parseWorkflow = (raw: unknown): WorkflowSchema => {
 
   const parsed = workflowSchema.safeParse(raw);
   if (!parsed.success) {
-    throw new WorkFlowValidationError({
+    throw new WorkflowValidationError({
       message: `Invalid workflow:\n${formatZodError(parsed.error)}`,
     });
   }
@@ -34,7 +34,7 @@ export const loadWorkflow = (yaml: string): WorkflowSchema => {
   try {
     raw = load(yaml);
   } catch (cause) {
-    throw new WorkFlowValidationError({
+    throw new WorkflowValidationError({
       message: `Failed to parse YAML: ${cause instanceof Error ? cause.message : String(cause)}`,
     });
   }
@@ -46,7 +46,7 @@ export const loadWorkflowFromFile = (path: string): WorkflowSchema => {
   try {
     yaml = readFileSync(path, "utf8");
   } catch (cause) {
-    throw new WorkFlowValidationError({
+    throw new WorkflowValidationError({
       message: `Failed to read workflow file "${path}": ${cause instanceof Error ? cause.message : String(cause)}`,
     });
   }
