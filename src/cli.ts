@@ -92,11 +92,13 @@ const main = async () => {
     const progress = process.stderr.isTTY ? createProgressSpinner(process.stderr) : undefined;
     try {
       const cliValues = parseInputArgs(args.slice(2));
-      const { result, health, outputPath, healthPath, sourcePath, logPath } =
-        await runWorkflowFile(file, {
+      const { result, health, outputPath, healthPath, sourcePath, logPath } = await runWorkflowFile(
+        file,
+        {
           onProgress: progress?.onProgress,
           cliValues,
-        });
+        },
+      );
       console.error(`Saved ${outputPath}`);
       console.error(`Saved ${healthPath}`);
       console.error(`Saved ${sourcePath}`);
