@@ -1,5 +1,5 @@
 import { HttpTransportError, StepExecutionError, WorkFlowValidationError } from "../error.js";
-import type { HttpClient, HttpRequest } from "../http/client.js";
+import { DEFAULT_REQUEST_TIMEOUT_MS, type HttpClient, type HttpRequest } from "../http/client.js";
 import type { ResolvedInputs } from "../input/resolve.js";
 import { interpolate, renderStepOutput } from "../interpolate.js";
 import { scrapeOp } from "../scrape/apply.js";
@@ -7,7 +7,7 @@ import { emptyStats, toHealth, type Health, type Stats } from "../scrape/health.
 import { emptySources, recordScrapeRows, type Sources } from "../scrape/source.js";
 import type { HtmlDocument } from "../scrape/html.js";
 import { isJsonScraper, parseJson, scrapeJsonOp } from "../scrape/json.js";
-import { requestSchema } from "../workflow/schema.js";
+import { requestSchema, timeoutToMs } from "../workflow/schema.js";
 import type { LoggingLevel, Step, WorkflowResult, WorkflowSchema } from "../workflow/types.js";
 import { advancePagination, initialNext, shouldStop } from "./pagination.js";
 
@@ -126,7 +126,11 @@ const asHttpRequest = (value: unknown, stepId: string): HttpRequest => {
       url: requestUrl(value),
     });
   }
-  return parsed.data;
+  const { timeout, ...request } = parsed.data;
+  return {
+    ...request,
+    timeoutMs: timeout === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : timeoutToMs(timeout),
+  };
 };
 
 const transportStatus = (cause: unknown): number | undefined => {
@@ -480,14 +484,7 @@ const executeStep = async (
         });
       }
       for (const item of items) {
-        await executeStepPass(
-          workflow,
-          step,
-          deps,
-          session,
-          { ...inputs, [inputId]: item },
-          emit,
-        );
+        await executeStepPass(workflow, step, deps, session, { ...inputs, [inputId]: item }, emit);
       }
     }
     emit("done", 100, step.id);

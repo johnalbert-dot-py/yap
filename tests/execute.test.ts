@@ -75,6 +75,83 @@ describe("executeWorkflow", () => {
     expect(cars.map((row) => row.title)).toEqual(["Laptop", "Phone", "Tablet"]);
   });
 
+  it("passes request timeout to http as milliseconds", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: timeout-demo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: "https://example.test/"
+          timeout: 45s
+`);
+    let timeoutMs: number | undefined;
+    const http: HttpClient = {
+      async request(req: HttpRequest) {
+        timeoutMs = req.timeoutMs;
+        return { status: 200, url: req.url, bodyText: "ok" };
+      },
+    };
+    await executeWorkflow(workflow, { http });
+    expect(timeoutMs).toBe(45_000);
+  });
+
+  it("treats a bare request timeout number as seconds", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: timeout-demo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: "https://example.test/"
+          timeout: 45
+`);
+    let timeoutMs: number | undefined;
+    const http: HttpClient = {
+      async request(req: HttpRequest) {
+        timeoutMs = req.timeoutMs;
+        return { status: 200, url: req.url, bodyText: "ok" };
+      },
+    };
+    await executeWorkflow(workflow, { http });
+    expect(timeoutMs).toBe(45_000);
+  });
+
+  it("defaults HTTP timeout to 30 seconds", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: timeout-demo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: "https://example.test/"
+`);
+    let timeoutMs: number | undefined;
+    const http: HttpClient = {
+      async request(req: HttpRequest) {
+        timeoutMs = req.timeoutMs;
+        return { status: 200, url: req.url, bodyText: "ok" };
+      },
+    };
+    await executeWorkflow(workflow, { http });
+    expect(timeoutMs).toBe(30_000);
+  });
+
   it("emits start, per-iteration ticks, and done without joining every page", async () => {
     const workflow = loadWorkflow(yaml);
     const events: StepProgress[] = [];
@@ -1178,9 +1255,7 @@ data:
     const run = await executeWorkflow(workflow, { http, parseHtml });
     expect(run.health.status).toBe("healthy");
     expect(run.health.fields.map((field) => field.scraperId)).toEqual(["body-text"]);
-    expect(Object.values(run.sources.cells).map((cell) => cell.scraperId)).toEqual([
-      "body-text",
-    ]);
+    expect(Object.values(run.sources.cells).map((cell) => cell.scraperId)).toEqual(["body-text"]);
   });
 });
 

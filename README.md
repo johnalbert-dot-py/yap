@@ -18,7 +18,7 @@ You write the task in YAML. The CLI and the library both call `executeWorkflow`.
 
 ## Why YAP?
 
-- **HTTP-first.** Fetch HTML or JSON, scrape named fields, and paginate from YAML.
+- **HTTP-first.** Fetch HTML or JSON, scrape named fields, and paginate from YAML. Optional `timeout` on a request is a duration like `30s` or `30` (seconds if no unit). Default `30s`.
 - **Declarative YAML.** Scrapers, steps, and fields live in one file.
 - **`yap explain`.** Point at a cell and print the request, step, scraper, and selector that produced it.
 - **Required-field health.** Set `required: true` on a field. After the run, see matched versus attempted, then `degraded` or `failed`.

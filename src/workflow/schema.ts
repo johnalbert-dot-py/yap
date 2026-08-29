@@ -56,12 +56,39 @@ export const scrapeSchema = z.object({
   using: z.string().min(1),
 });
 
+const TIMEOUT_PATTERN = /^([1-9]\d*)(ms|s|m)?$/;
+
+export const timeoutToMs = (timeout: string | number): number => {
+  const match = TIMEOUT_PATTERN.exec(String(timeout));
+  if (!match) {
+    throw new Error(`Invalid timeout "${timeout}"`);
+  }
+  const amount = Number(match[1]);
+  const unit = match[2] ?? "s";
+  if (unit === "ms") {
+    return amount;
+  }
+  if (unit === "s") {
+    return amount * 1000;
+  }
+  if (unit === "m") {
+    return amount * 60_000;
+  }
+  throw new Error(`Invalid timeout "${timeout}"`);
+};
+
 export const requestSchema = z.object({
   url: z.string().min(1),
   method: z.enum(["GET", "POST", "PUT", "DELETE"]),
   headers: z.record(z.string(), z.string()).optional(),
   body: z.unknown().optional(),
   params: z.record(z.string(), z.unknown()).optional(),
+  timeout: z
+    .union([
+      z.number().int().min(1),
+      z.string().regex(TIMEOUT_PATTERN, 'must be a duration like "5s"'),
+    ])
+    .optional(),
 });
 
 export const primitiveInputTypeSchema = z.enum([
