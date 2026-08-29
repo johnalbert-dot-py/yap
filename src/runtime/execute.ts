@@ -146,10 +146,20 @@ const transportUrl = (cause: unknown, fallback: string): string => {
   return fallback;
 };
 
+const SENSITIVE_LOG_HEADERS = /^(authorization|cookie|proxy-authorization)$/i;
+
+const redactHeaders = (headers: Record<string, string>): Record<string, string> => {
+  const next: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    next[key] = SENSITIVE_LOG_HEADERS.test(key) ? "[redacted]" : value;
+  }
+  return next;
+};
+
 const requestLog = (req: HttpRequest): StepHttpLog["request"] => ({
   method: req.method,
   url: req.url,
-  ...(req.headers !== undefined ? { headers: req.headers } : {}),
+  ...(req.headers !== undefined ? { headers: redactHeaders(req.headers) } : {}),
   ...(req.body !== undefined ? { body: req.body } : {}),
   ...(req.params !== undefined ? { params: req.params } : {}),
 });

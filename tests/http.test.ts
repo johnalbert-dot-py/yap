@@ -115,4 +115,69 @@ describe("createFetchClient", () => {
     expect(cookieFromCall(calls[0])).toBeNull();
     expect(cookieFromCall(calls[1])).toBeNull();
   });
+
+  it("passes an abort signal to fetch", async () => {
+    const calls = stubFetch(async () => new Response("ok", { status: 200 }));
+    const http = createFetchClient();
+    await http.request({ method: "GET", url: "https://example.test/" });
+    expect(calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("keeps Authorization on a same-origin redirect", async () => {
+    const calls = stubFetch(async (url) => {
+      if (url.endsWith("/start")) {
+        return new Response("", {
+          status: 302,
+          headers: { location: "/next" },
+        });
+      }
+      return new Response("ok", { status: 200 });
+    });
+    const http = createFetchClient();
+    await http.request({
+      method: "GET",
+      url: "https://shop.example.test/start",
+      headers: { Authorization: "Bearer secret" },
+    });
+    expect(new Headers(calls[1]?.init?.headers).get("authorization")).toBe("Bearer secret");
+  });
+
+  it("drops Authorization and Cookie on a cross-origin redirect", async () => {
+    const calls = stubFetch(async (url) => {
+      if (url.includes("shop.example.test")) {
+        return new Response("", {
+          status: 302,
+          headers: { location: "https://other.example.test/next" },
+        });
+      }
+      return new Response("ok", { status: 200 });
+    });
+    const http = createFetchClient();
+    await http.request({
+      method: "GET",
+      url: "https://shop.example.test/start",
+      headers: { Authorization: "Bearer secret", Cookie: "session=1" },
+    });
+    expect(calls[1]?.url).toBe("https://other.example.test/next");
+    const headers = new Headers(calls[1]?.init?.headers);
+    expect(headers.get("authorization")).toBeNull();
+    expect(headers.get("cookie")).toBeNull();
+  });
+
+  it("aborts when timeoutMs elapses", async () => {
+    stubFetch(async (_url, init) => {
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, 200);
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(init.signal?.reason ?? new Error("aborted"));
+        });
+      });
+      return new Response("late", { status: 200 });
+    });
+    const http = createFetchClient();
+    await expect(
+      http.request({ method: "GET", url: "https://example.test/", timeoutMs: 20 }),
+    ).rejects.toMatchObject({ status: 408 });
+  });
 });

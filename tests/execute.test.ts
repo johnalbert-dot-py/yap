@@ -912,6 +912,46 @@ describe("HTTP logging", () => {
     expect(entries[0]?.response?.status).toBe(503);
   });
 
+  it("redacts Authorization and Cookie on logged requests", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: log-demo
+logging:
+  level: INFO
+scrapers:
+  body-text:
+    fields:
+      target: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: initial-page
+        request:
+          method: GET
+          url: "https://example.test/page"
+          headers:
+            Accept: text/html
+            Authorization: Bearer secret
+            Cookie: session=1
+        scrape:
+          - id: page
+            selector: body
+            using: body-text
+`);
+    const entries: StepHttpLog[] = [];
+    await executeWorkflow(workflow, {
+      http: logHttp(),
+      parseHtml,
+      onLog: (entry) => entries.push(entry),
+    });
+    expect(entries[0]?.request.headers).toEqual({
+      Accept: "text/html",
+      Authorization: "[redacted]",
+      Cookie: "[redacted]",
+    });
+  });
+
   it("sends a request with empty scrape and does not need parseHtml", async () => {
     const urls: string[] = [];
     const http: HttpClient = {

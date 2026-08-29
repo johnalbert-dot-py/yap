@@ -3,12 +3,15 @@ import { CookieJar, mergeCookieHeader } from "./cookies.js";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
+export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
 export type HttpRequest = {
   method: HttpMethod;
   url: string;
   headers?: Record<string, string>;
   body?: unknown;
   params?: Record<string, unknown>;
+  timeoutMs?: number;
 };
 
 export type HttpResponse = {
@@ -62,11 +65,26 @@ const responseHeaders = (headers: Headers): Record<string, string> => {
 const REDIRECT_CODES = new Set([301, 302, 303, 307, 308]);
 const MAX_REDIRECTS = 20;
 
+const SENSITIVE_REQUEST_HEADERS = new Set(["authorization", "cookie", "proxy-authorization"]);
+
+const originOf = (url: string): string => new URL(url).origin;
+
 const dropBodyHeaders = (headers: Record<string, string>): Record<string, string> => {
   const next: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
     const lower = key.toLowerCase();
     if (lower === "content-type" || lower === "content-length") {
+      continue;
+    }
+    next[key] = value;
+  }
+  return next;
+};
+
+const dropSensitiveHeaders = (headers: Record<string, string>): Record<string, string> => {
+  const next: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (SENSITIVE_REQUEST_HEADERS.has(key.toLowerCase())) {
       continue;
     }
     next[key] = value;
@@ -94,12 +112,28 @@ export const createFetchClient = (): HttpClient => {
 
       while (true) {
         const requestHeaders = mergeCookieHeader(headers, jar.cookieHeaderFor(url));
-        const response = await fetch(url, {
-          method,
-          headers: requestHeaders,
-          body,
-          redirect: "manual",
-        });
+        let response: Response;
+        try {
+          response = await fetch(url, {
+            method,
+            headers: requestHeaders,
+            body,
+            redirect: "manual",
+            signal: AbortSignal.timeout(req.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS),
+          });
+        } catch (error) {
+          const timedOut =
+            error instanceof Error &&
+            (error.name === "TimeoutError" || error.name === "AbortError");
+          if (timedOut) {
+            throw new HttpTransportError({
+              message: `Request timed out for ${url}`,
+              url,
+              status: 408,
+            });
+          }
+          throw error;
+        }
         const responseUrl = response.url || url;
         jar.storeFromResponse(responseUrl, response.headers);
 
@@ -114,7 +148,11 @@ export const createFetchClient = (): HttpClient => {
           }
           redirects += 1;
           await response.arrayBuffer();
-          url = new URL(location, url).toString();
+          const nextUrl = new URL(location, url).toString();
+          if (originOf(nextUrl) !== originOf(url)) {
+            headers = dropSensitiveHeaders(headers);
+          }
+          url = nextUrl;
           if (shouldSwitchToGet(response.status, method)) {
             method = "GET";
             body = undefined;
