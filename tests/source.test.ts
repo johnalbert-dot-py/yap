@@ -68,7 +68,6 @@ describe("recordScrapeRows", () => {
     ]);
     expect(index.cells["list_of_cars.cars[2].year"]).toMatchObject({
       value: "2019",
-      rawValue: "2019",
       stepId: "remaining-pages",
       scraperId: "car-detail",
       scrapeId: "cars",
@@ -120,7 +119,6 @@ describe("lookup and format", () => {
   const cell: CellSource = {
     path: "list_of_cars.cars[17].year",
     value: "2021",
-    rawValue: "2021",
     stepId: "remaining-pages",
     scraperId: "car-detail",
     scrapeId: "cars",
@@ -153,9 +151,6 @@ Scraper:
 car-detail
 
 Selector:
-p.card-text -> 1
-
-Raw value:
-"2021"`);
+p.card-text -> 1`);
   });
 });

@@ -88,8 +88,6 @@ export const runWorkflowFile = async (
   };
 };
 
-export const inspectWorkflowFile = (file: string): WorkflowSchema => loadWorkflowFromFile(file);
-
 export const countRows = (result: WorkflowResult): number =>
   Object.values(result).reduce(
     (total, buckets) => total + Object.values(buckets).reduce((sum, rows) => sum + rows.length, 0),

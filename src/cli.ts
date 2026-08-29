@@ -2,12 +2,8 @@
 import { StepExecutionError, WorkFlowValidationError } from "./error.js";
 import { runInteractiveCli } from "./cli/interactive.js";
 import { parseInputArgs } from "./input/argv.js";
-import {
-  createWorkflow,
-  inspectWorkflowFile,
-  runWorkflowFile,
-  summarizeWorkflow,
-} from "./cli/actions.js";
+import { createWorkflow, runWorkflowFile, summarizeWorkflow } from "./cli/actions.js";
+import { loadWorkflowFromFile } from "./workflow/load.js";
 import { ExplainError, explainCell } from "./cli/explain.js";
 import {
   formatDriftReport,
@@ -129,7 +125,7 @@ const main = async () => {
   }
 
   if (command === "inspect" && file) {
-    const workflow = await inspectWorkflowFile(file);
+    const workflow = loadWorkflowFromFile(file);
     console.log(summarizeWorkflow(workflow));
     return;
   }

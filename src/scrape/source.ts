@@ -1,7 +1,6 @@
 export type CellSource = {
   path: string;
   value: unknown;
-  rawValue: unknown;
   stepId: string;
   scraperId: string;
   scrapeId: string;
@@ -103,7 +102,6 @@ export const recordScrapeRows = (args: {
       const cell: CellSource = {
         path,
         value: row[field],
-        rawValue: row[field],
         stepId,
         scraperId,
         scrapeId,
@@ -148,7 +146,4 @@ export const formatCell = (cell: CellSource): string =>
     "",
     "Selector:",
     cell.selector,
-    "",
-    "Raw value:",
-    JSON.stringify(cell.rawValue),
   ].join("\n");

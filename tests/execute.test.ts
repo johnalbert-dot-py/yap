@@ -1158,7 +1158,6 @@ describe("source capture", () => {
     ]);
     expect(run.sources.cells["list_of_cars.cars[0].title"]).toMatchObject({
       value: "Laptop",
-      rawValue: "Laptop",
       stepId: "initial-page",
       scraperId: "car-detail",
       scrapeId: "cars",

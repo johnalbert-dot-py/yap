@@ -14,7 +14,6 @@ import type { Sources } from "../src/scrape/source.js";
 const cell = {
   path: "list_of_cars.cars[17].year",
   value: "2021",
-  rawValue: "2021",
   stepId: "remaining-pages",
   scraperId: "car-detail",
   scrapeId: "cars",

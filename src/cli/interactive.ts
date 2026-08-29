@@ -18,11 +18,11 @@ import { StepExecutionError, WorkFlowValidationError } from "../error.js";
 import {
   countRows,
   createWorkflow,
-  inspectWorkflowFile,
   isWorkflowFileBaseName,
   runWorkflowFile,
   summarizeWorkflow,
 } from "./actions.js";
+import { loadWorkflowFromFile } from "../workflow/load.js";
 import { ExplainError, explainCell } from "./explain.js";
 import {
   formatDriftReport,
@@ -236,7 +236,7 @@ const inspectInteractive = async (file: string) => {
   const spin = spinner();
   spin.start(`Loading ${file}`);
   try {
-    const workflow = await inspectWorkflowFile(file);
+    const workflow = loadWorkflowFromFile(file);
     spin.stop(`Loaded ${workflow.name}`);
     note(summarizeWorkflow(workflow), workflow.name);
   } catch (error) {

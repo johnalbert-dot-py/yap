@@ -201,7 +201,6 @@ describe("writeSources", () => {
         "list.cards[0].title": {
           path: "list.cards[0].title",
           value: "Laptop",
-          rawValue: "Laptop",
           stepId: "page",
           scraperId: "card",
           scrapeId: "cards",
