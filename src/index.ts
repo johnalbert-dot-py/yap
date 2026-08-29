@@ -1,8 +1,8 @@
-export { HttpTransportError, StepExecutionError, WorkFlowValidationError } from "./error.js";
+export { HttpTransportError, StepExecutionError, WorkflowValidationError } from "./error.js";
 export { loadWorkflow, loadWorkflowFromFile } from "./workflow/load.js";
 export { executeWorkflow } from "./runtime/execute.js";
 export type { Deps, StepHttpLog, StepProgress, WorkflowRun } from "./runtime/execute.js";
-export { createFetchClient } from "./http/client.js";
+export { createFetchClient, DEFAULT_REQUEST_TIMEOUT_MS } from "./http/client.js";
 export type { HttpClient, HttpRequest, HttpResponse } from "./http/client.js";
 export { parseHtml } from "./scrape/html.js";
 export type { HtmlDocument, HtmlNode } from "./scrape/html.js";

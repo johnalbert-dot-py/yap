@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { StepExecutionError, WorkFlowValidationError } from "./error.js";
+import { StepExecutionError, WorkflowValidationError } from "./error.js";
 import { runInteractiveCli } from "./cli/interactive.js";
 import { parseInputArgs } from "./input/argv.js";
 import { createWorkflow, runWorkflowFile, summarizeWorkflow } from "./cli/actions.js";
@@ -51,7 +51,7 @@ const printStepFailed = (error: StepExecutionError) => {
 };
 
 const fail = (error: unknown): never => {
-  if (error instanceof WorkFlowValidationError) {
+  if (error instanceof WorkflowValidationError) {
     console.error("YAP_WORKFLOW_INVALID");
     console.error("");
     console.error(error.message);
@@ -92,11 +92,13 @@ const main = async () => {
     const progress = process.stderr.isTTY ? createProgressSpinner(process.stderr) : undefined;
     try {
       const cliValues = parseInputArgs(args.slice(2));
-      const { result, health, outputPath, healthPath, sourcePath, logPath } =
-        await runWorkflowFile(file, {
+      const { result, health, outputPath, healthPath, sourcePath, logPath } = await runWorkflowFile(
+        file,
+        {
           onProgress: progress?.onProgress,
           cliValues,
-        });
+        },
+      );
       console.error(`Saved ${outputPath}`);
       console.error(`Saved ${healthPath}`);
       console.error(`Saved ${sourcePath}`);

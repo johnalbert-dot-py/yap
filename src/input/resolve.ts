@@ -1,6 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { load } from "js-yaml";
-import { WorkFlowValidationError } from "../error.js";
+import { WorkflowValidationError } from "../error.js";
 import type {
   InputDeclaration,
   PrimitiveInputType,
@@ -23,7 +23,7 @@ export type ResolveInputsOptions = {
 };
 
 const fail = (message: string): never => {
-  throw new WorkFlowValidationError({ message });
+  throw new WorkflowValidationError({ message });
 };
 
 const coerceScalar = (

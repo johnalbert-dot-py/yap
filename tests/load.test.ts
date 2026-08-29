@@ -2,16 +2,17 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { WorkFlowValidationError } from "../src/error.js";
+import { WorkflowValidationError } from "../src/error.js";
 import { loadWorkflow } from "../src/workflow/load.js";
+import { timeoutToMs } from "../src/workflow/schema.js";
 
 const dir = dirname(fileURLToPath(import.meta.url));
 
-const captureValidationError = (yaml: string): WorkFlowValidationError => {
+const captureValidationError = (yaml: string): WorkflowValidationError => {
   try {
     loadWorkflow(yaml);
   } catch (error) {
-    if (error instanceof WorkFlowValidationError) {
+    if (error instanceof WorkflowValidationError) {
       return error;
     }
     throw error;
@@ -471,5 +472,155 @@ data:
           url: https://example.test
 `);
     expect(error.message).toContain('reserved step id "request"');
+  });
+
+  it("rejects unknown keys on the workflow root", () => {
+    const error = captureValidationError(`
+version: 1
+name: typo
+loging:
+  level: INFO
+scrapers: {}
+data: {}
+`);
+    expect(error.message).toMatch(/loging|unrecognized/i);
+  });
+
+  it("rejects selecter on a field", () => {
+    const error = captureValidationError(`
+version: 1
+name: typo
+scrapers:
+  card:
+    fields:
+      title:
+        selecter: h1
+data:
+  one:
+    name: One
+    steps:
+      - id: open
+        request:
+          method: GET
+          url: https://example.test
+        scrape:
+          - id: cards
+            selector: .card
+            using: card
+`);
+    expect(error.message).toMatch(/selecter|unrecognized/i);
+  });
+
+  it("rejects timout on a request", () => {
+    const error = captureValidationError(`
+version: 1
+name: typo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: https://example.test
+          timout: 5s
+`);
+    expect(error.message).toMatch(/timout|unrecognized/i);
+  });
+
+  it("accepts a request timeout duration", () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: timeout-demo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: https://example.test
+          timeout: 45s
+`);
+    expect(workflow.data.one?.steps[0]?.request.timeout).toBe("45s");
+  });
+
+  it("treats a bare number timeout as seconds", () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: timeout-demo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: https://example.test
+          timeout: 45
+`);
+    expect(workflow.data.one?.steps[0]?.request.timeout).toBe(45);
+  });
+
+  it("rejects 0s and unknown units", () => {
+    const zero = captureValidationError(`
+version: 1
+name: timeout-demo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: https://example.test
+          timeout: 0s
+`);
+    expect(zero.message).toMatch(/timeout|5s/i);
+    const junk = captureValidationError(`
+version: 1
+name: timeout-demo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: https://example.test
+          timeout: 5hours
+`);
+    expect(junk.message).toMatch(/timeout/i);
+  });
+
+  it("rejects timeout on the workflow root", () => {
+    const error = captureValidationError(`
+version: 1
+name: timeout-demo
+timeout: 45
+scrapers: {}
+data: {}
+`);
+    expect(error.message).toMatch(/timeout|unrecognized/i);
+  });
+});
+
+describe("timeoutToMs", () => {
+  it("converts ms, s, m, and bare seconds", () => {
+    expect(timeoutToMs("500ms")).toBe(500);
+    expect(timeoutToMs("5s")).toBe(5_000);
+    expect(timeoutToMs("2m")).toBe(120_000);
+    expect(timeoutToMs("45")).toBe(45_000);
+    expect(timeoutToMs(45)).toBe(45_000);
+  });
+
+  it("rejects values the schema also rejects", () => {
+    expect(() => timeoutToMs("0s")).toThrow(/Invalid timeout/);
+    expect(() => timeoutToMs("5hours")).toThrow(/Invalid timeout/);
   });
 });

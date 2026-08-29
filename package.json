@@ -7,7 +7,10 @@
     "yap": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts.map"
   ],
   "type": "module",
   "main": "./dist/index.js",
@@ -21,7 +24,7 @@
   },
   "scripts": {
     "build": "node ./node_modules/typescript/lib/tsc.js -p tsconfig.json",
-    "prepack": "node ./node_modules/typescript/lib/tsc.js -p tsconfig.json",
+    "prepack": "rm -rf dist && node ./node_modules/typescript/lib/tsc.js -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

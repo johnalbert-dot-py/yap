@@ -15,7 +15,7 @@ Rows in `data` stay plain values. Sources and health are siblings, not columns o
 - `yap explain` prints a cell from the newest source sidecar. The path is `datasetId.scrapeId[row].field`.
 - `required: true` fields feed health. Zero matches on an attempted required field is `failed`. Some misses is `degraded`.
 - `yap drift` compares the current health file to the previous one.
-- `createFetchClient` keeps a cookie jar and follows redirects. There is no browser. Cheerio parses HTML. JSON-only workflows can omit `parseHtml`.
+- `createFetchClient` keeps a cookie jar and follows redirects. Each request uses `AbortSignal.timeout`. Request `timeout` is a duration like `5s`, `500ms`, `2m`, or a bare number of seconds (default `30s`). Cross-origin redirects drop Authorization, Cookie, and Proxy-Authorization. There is no browser. Cheerio parses HTML. JSON-only workflows can omit `parseHtml`.
 - Inner `executeOnce`, `executeStep`, and `executeDataset` are not exported.
 
 ## Source tree

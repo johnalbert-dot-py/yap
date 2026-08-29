@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { HttpTransportError, WorkFlowValidationError } from "../src/error.js";
+import { HttpTransportError, StepExecutionError, WorkflowValidationError } from "../src/error.js";
 import type { HttpClient, HttpRequest } from "../src/http/client.js";
 import { executeWorkflow, type StepHttpLog, type StepProgress } from "../src/runtime/execute.js";
 import { parseHtml } from "../src/scrape/html.js";
@@ -73,6 +73,83 @@ describe("executeWorkflow", () => {
     });
     const cars = result.data.list_of_cars.cars as Array<{ title: string }>;
     expect(cars.map((row) => row.title)).toEqual(["Laptop", "Phone", "Tablet"]);
+  });
+
+  it("passes request timeout to http as milliseconds", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: timeout-demo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: "https://example.test/"
+          timeout: 45s
+`);
+    let timeoutMs: number | undefined;
+    const http: HttpClient = {
+      async request(req: HttpRequest) {
+        timeoutMs = req.timeoutMs;
+        return { status: 200, url: req.url, bodyText: "ok" };
+      },
+    };
+    await executeWorkflow(workflow, { http });
+    expect(timeoutMs).toBe(45_000);
+  });
+
+  it("treats a bare request timeout number as seconds", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: timeout-demo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: "https://example.test/"
+          timeout: 45
+`);
+    let timeoutMs: number | undefined;
+    const http: HttpClient = {
+      async request(req: HttpRequest) {
+        timeoutMs = req.timeoutMs;
+        return { status: 200, url: req.url, bodyText: "ok" };
+      },
+    };
+    await executeWorkflow(workflow, { http });
+    expect(timeoutMs).toBe(45_000);
+  });
+
+  it("defaults HTTP timeout to 30 seconds", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: timeout-demo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: "https://example.test/"
+`);
+    let timeoutMs: number | undefined;
+    const http: HttpClient = {
+      async request(req: HttpRequest) {
+        timeoutMs = req.timeoutMs;
+        return { status: 200, url: req.url, bodyText: "ok" };
+      },
+    };
+    await executeWorkflow(workflow, { http });
+    expect(timeoutMs).toBe(30_000);
   });
 
   it("emits start, per-iteration ticks, and done without joining every page", async () => {
@@ -568,7 +645,7 @@ data: {}
 `);
 
     await expect(executeWorkflow(workflow, { http: mockHttp(), parseHtml })).rejects.toBeInstanceOf(
-      WorkFlowValidationError,
+      WorkflowValidationError,
     );
     await expect(executeWorkflow(workflow, { http: mockHttp(), parseHtml })).rejects.toMatchObject({
       message: 'Missing required input "ids"',
@@ -586,7 +663,7 @@ data: {}
 `);
     await expect(
       executeWorkflow(workflow, { http: mockHttp(), parseHtml, inputs: { ids: undefined } }),
-    ).rejects.toBeInstanceOf(WorkFlowValidationError);
+    ).rejects.toBeInstanceOf(WorkflowValidationError);
   });
 
   it("rejects an interpolated request that is no longer a valid HTTP request", async () => {
@@ -622,6 +699,66 @@ data:
     ).rejects.toMatchObject({
       stepId: "fetch",
       message: expect.stringContaining("Invalid request after interpolation"),
+    });
+  });
+
+  it("rejects a request url with an unresolved interpolation", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: bad-token
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: "https://example.test/{{ input.tokne }}"
+`);
+    await expect(executeWorkflow(workflow, { http: mockHttp(), parseHtml })).rejects.toBeInstanceOf(
+      StepExecutionError,
+    );
+    await expect(executeWorkflow(workflow, { http: mockHttp(), parseHtml })).rejects.toMatchObject({
+      name: "StepExecutionError",
+      stepId: "hit",
+      message: expect.stringContaining('Unresolved interpolation "{{ input.tokne }}"'),
+    });
+  });
+
+  it("wraps an invalid CSS selector as StepExecutionError", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: bad-selector
+scrapers:
+  card:
+    fields:
+      title:
+        selector: h3
+data:
+  list:
+    name: List
+    steps:
+      - id: page
+        request:
+          method: GET
+          url: https://example.test
+        scrape:
+          - id: cards
+            selector: "[[["
+            using: card
+`);
+    const http: HttpClient = {
+      async request(req) {
+        return { status: 200, url: req.url, bodyText: "<div></div>" };
+      },
+    };
+    await expect(executeWorkflow(workflow, { http, parseHtml })).rejects.toBeInstanceOf(
+      StepExecutionError,
+    );
+    await expect(executeWorkflow(workflow, { http, parseHtml })).rejects.toMatchObject({
+      name: "StepExecutionError",
+      stepId: "page",
     });
   });
 
@@ -870,6 +1007,63 @@ describe("HTTP logging", () => {
     expect(entries[0]?.response).toBeUndefined();
   });
 
+  it("omits request body and params at INFO", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: log-demo
+logging:
+  level: INFO
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: POST
+          url: "https://example.test/api"
+          body:
+            token: secret
+          params:
+            q: 1
+`);
+    const entries: StepHttpLog[] = [];
+    await executeWorkflow(workflow, {
+      http: logHttp(),
+      onLog: (entry) => entries.push(entry),
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.request).not.toHaveProperty("body");
+    expect(entries[0]?.request).not.toHaveProperty("params");
+  });
+
+  it("includes request body at DEBUG", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: log-demo
+logging:
+  level: DEBUG
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: POST
+          url: "https://example.test/api"
+          body:
+            token: secret
+`);
+    const entries: StepHttpLog[] = [];
+    await executeWorkflow(workflow, {
+      http: logHttp(),
+      onLog: (entry) => entries.push(entry),
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.request.body).toEqual({ token: "secret" });
+  });
+
   it("includes response.bodyText at DEBUG", async () => {
     const workflow = loadWorkflow(logYaml("logging:\n  level: DEBUG\n"));
     const entries: StepHttpLog[] = [];
@@ -910,6 +1104,46 @@ describe("HTTP logging", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0]?.request.url).toBe("https://example.test/page");
     expect(entries[0]?.response?.status).toBe(503);
+  });
+
+  it("redacts Authorization and Cookie on logged requests", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: log-demo
+logging:
+  level: INFO
+scrapers:
+  body-text:
+    fields:
+      target: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: initial-page
+        request:
+          method: GET
+          url: "https://example.test/page"
+          headers:
+            Accept: text/html
+            Authorization: Bearer secret
+            Cookie: session=1
+        scrape:
+          - id: page
+            selector: body
+            using: body-text
+`);
+    const entries: StepHttpLog[] = [];
+    await executeWorkflow(workflow, {
+      http: logHttp(),
+      parseHtml,
+      onLog: (entry) => entries.push(entry),
+    });
+    expect(entries[0]?.request.headers).toEqual({
+      Accept: "text/html",
+      Authorization: "[redacted]",
+      Cookie: "[redacted]",
+    });
   });
 
   it("sends a request with empty scrape and does not need parseHtml", async () => {
@@ -1138,9 +1372,7 @@ data:
     const run = await executeWorkflow(workflow, { http, parseHtml });
     expect(run.health.status).toBe("healthy");
     expect(run.health.fields.map((field) => field.scraperId)).toEqual(["body-text"]);
-    expect(Object.values(run.sources.cells).map((cell) => cell.scraperId)).toEqual([
-      "body-text",
-    ]);
+    expect(Object.values(run.sources.cells).map((cell) => cell.scraperId)).toEqual(["body-text"]);
   });
 });
 

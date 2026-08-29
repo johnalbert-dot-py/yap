@@ -1,7 +1,7 @@
-export class WorkFlowValidationError extends Error {
+export class WorkflowValidationError extends Error {
   constructor({ message }: { message: string }) {
     super(message);
-    this.name = "WorkFlowValidationError";
+    this.name = "WorkflowValidationError";
   }
 }
 

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { WorkFlowValidationError } from "../error.js";
+import { WorkflowValidationError } from "../error.js";
 import { createFetchClient } from "../http/client.js";
 import type { HttpClient } from "../http/client.js";
 import { resolveInputs } from "../input/resolve.js";
@@ -132,7 +132,7 @@ export const createWorkflow = (
 ): string => {
   const base = name.trim().replace(/\.ya?ml$/i, "");
   if (!isWorkflowFileBaseName(base)) {
-    throw new WorkFlowValidationError({
+    throw new WorkflowValidationError({
       message: `Invalid workflow name "${name}". Use letters, numbers, dots, dashes, and underscores.`,
     });
   }
@@ -149,14 +149,14 @@ data: {}
   mkdirSync(dir, { recursive: true });
   const workflowFile = join(dir, `${base}.yaml`);
   if (existsSync(workflowFile)) {
-    throw new WorkFlowValidationError({
+    throw new WorkflowValidationError({
       message: `Workflow file already exists: ${workflowFile}`,
     });
   }
   try {
     writeFileSync(workflowFile, template, "utf8");
   } catch (cause) {
-    throw new WorkFlowValidationError({
+    throw new WorkflowValidationError({
       message: `Failed to write "${workflowFile}": ${cause instanceof Error ? cause.message : String(cause)}`,
     });
   }

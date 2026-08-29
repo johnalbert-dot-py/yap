@@ -1,5 +1,5 @@
-import { HttpTransportError, StepExecutionError, WorkFlowValidationError } from "../error.js";
-import type { HttpClient, HttpRequest } from "../http/client.js";
+import { HttpTransportError, StepExecutionError, WorkflowValidationError } from "../error.js";
+import { DEFAULT_REQUEST_TIMEOUT_MS, type HttpClient, type HttpRequest } from "../http/client.js";
 import type { ResolvedInputs } from "../input/resolve.js";
 import { interpolate, renderStepOutput } from "../interpolate.js";
 import { scrapeOp } from "../scrape/apply.js";
@@ -7,7 +7,7 @@ import { emptyStats, toHealth, type Health, type Stats } from "../scrape/health.
 import { emptySources, recordScrapeRows, type Sources } from "../scrape/source.js";
 import type { HtmlDocument } from "../scrape/html.js";
 import { isJsonScraper, parseJson, scrapeJsonOp } from "../scrape/json.js";
-import { requestSchema } from "../workflow/schema.js";
+import { requestSchema, timeoutToMs } from "../workflow/schema.js";
 import type { LoggingLevel, Step, WorkflowResult, WorkflowSchema } from "../workflow/types.js";
 import { advancePagination, initialNext, shouldStop } from "./pagination.js";
 
@@ -126,7 +126,11 @@ const asHttpRequest = (value: unknown, stepId: string): HttpRequest => {
       url: requestUrl(value),
     });
   }
-  return parsed.data;
+  const { timeout, ...request } = parsed.data;
+  return {
+    ...request,
+    timeoutMs: timeout === undefined ? DEFAULT_REQUEST_TIMEOUT_MS : timeoutToMs(timeout),
+  };
 };
 
 const transportStatus = (cause: unknown): number | undefined => {
@@ -146,12 +150,22 @@ const transportUrl = (cause: unknown, fallback: string): string => {
   return fallback;
 };
 
-const requestLog = (req: HttpRequest): StepHttpLog["request"] => ({
+const SENSITIVE_LOG_HEADERS = /^(authorization|cookie|proxy-authorization)$/i;
+
+const redactHeaders = (headers: Record<string, string>): Record<string, string> => {
+  const next: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    next[key] = SENSITIVE_LOG_HEADERS.test(key) ? "[redacted]" : value;
+  }
+  return next;
+};
+
+const requestLog = (req: HttpRequest, level: LoggingLevel): StepHttpLog["request"] => ({
   method: req.method,
   url: req.url,
-  ...(req.headers !== undefined ? { headers: req.headers } : {}),
-  ...(req.body !== undefined ? { body: req.body } : {}),
-  ...(req.params !== undefined ? { params: req.params } : {}),
+  ...(req.headers !== undefined ? { headers: redactHeaders(req.headers) } : {}),
+  ...(level === "DEBUG" && req.body !== undefined ? { body: req.body } : {}),
+  ...(level === "DEBUG" && req.params !== undefined ? { params: req.params } : {}),
 });
 
 const emitHttpLog = (
@@ -170,7 +184,7 @@ const emitHttpLog = (
     ts: (deps.now?.() ?? new Date()).toISOString(),
     level,
     stepId,
-    request: requestLog(req),
+    request: requestLog(req, level),
   };
   if (level === "DEBUG" && response) {
     entry.response = response;
@@ -273,9 +287,22 @@ const executeOnce = async (
         url: req.url,
       });
     }
-    const rows = isJsonScraper(scraper)
-      ? scrapeJsonOp(json(), op, scraper, session.stats)
-      : scrapeOp(html(), op, scraper, session.stats);
+    let rows;
+    try {
+      rows = isJsonScraper(scraper)
+        ? scrapeJsonOp(json(), op, scraper, session.stats)
+        : scrapeOp(html(), op, scraper, session.stats);
+    } catch (cause) {
+      if (cause instanceof StepExecutionError) {
+        throw cause;
+      }
+      throw new StepExecutionError({
+        message: cause instanceof Error ? cause.message : String(cause),
+        stepId: step.id,
+        url: response.url,
+        status: response.status,
+      });
+    }
     items[op.id] = rows;
     recordScrapeRows({
       index: session.sources,
@@ -398,13 +425,21 @@ const executeStepPass = async (
   const max = pagination?.max ?? 1;
 
   for (let iteration = 1; iteration <= max; iteration++) {
-    const req = asHttpRequest(
-      interpolate(
+    let interpolated: unknown;
+    try {
+      interpolated = interpolate(
         step.request,
         requestContext(next, session.stepResults, session.httpByStep, inputs, step.id),
-      ),
-      step.id,
-    );
+        { missing: "throw" },
+      );
+    } catch (cause) {
+      throw new StepExecutionError({
+        message: cause instanceof Error ? cause.message : String(cause),
+        stepId: step.id,
+        url: requestUrl(step.request),
+      });
+    }
+    const req = asHttpRequest(interpolated, step.id);
     const capture: Page = pagination
       ? { includePagination: true, paginationNext: next }
       : { includePagination: false };
@@ -470,14 +505,7 @@ const executeStep = async (
         });
       }
       for (const item of items) {
-        await executeStepPass(
-          workflow,
-          step,
-          deps,
-          session,
-          { ...inputs, [inputId]: item },
-          emit,
-        );
+        await executeStepPass(workflow, step, deps, session, { ...inputs, [inputId]: item }, emit);
       }
     }
     emit("done", 100, step.id);
@@ -495,7 +523,7 @@ const executeDataset = async (
 ): Promise<Record<string, Record<string, unknown>[]>> => {
   const dataset = workflow.data[datasetId];
   if (!dataset) {
-    throw new WorkFlowValidationError({
+    throw new WorkflowValidationError({
       message: `Unknown dataset "${datasetId}"`,
     });
   }
@@ -513,7 +541,7 @@ export const executeWorkflow = async (
   const inputs = deps.inputs ?? {};
   for (const inputId of Object.keys(workflow.input)) {
     if (!Object.hasOwn(inputs, inputId) || inputs[inputId] === undefined) {
-      throw new WorkFlowValidationError({
+      throw new WorkflowValidationError({
         message: `Missing required input "${inputId}"`,
       });
     }

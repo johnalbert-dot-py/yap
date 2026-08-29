@@ -1,43 +1,55 @@
 import z from "zod";
 
 export const getterSchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("text"),
-  }),
-  z.object({
-    type: z.literal("attribute"),
-    value: z.string().min(1),
-  }),
+  z
+    .object({
+      type: z.literal("text"),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("attribute"),
+      value: z.string().min(1),
+    })
+    .strict(),
 ]);
 
-export const fieldSchema = z.object({
-  selector: z
-    .string()
-    .optional()
-    .transform((value) => (value === "" ? undefined : value)),
-  index: z.number().int().min(1).optional(),
-  getter: getterSchema.optional(),
-  required: z.boolean().optional(),
-});
+export const fieldSchema = z
+  .object({
+    selector: z
+      .string()
+      .optional()
+      .transform((value) => (value === "" ? undefined : value)),
+    index: z.number().int().min(1).optional(),
+    getter: getterSchema.optional(),
+    required: z.boolean().optional(),
+  })
+  .strict();
 
-export const jsonFieldSchema = z.object({
-  path: z
-    .string()
-    .optional()
-    .transform((value) => (value === "" ? undefined : value)),
-  index: z.number().int().min(1).optional(),
-  required: z.boolean().optional(),
-});
+export const jsonFieldSchema = z
+  .object({
+    path: z
+      .string()
+      .optional()
+      .transform((value) => (value === "" ? undefined : value)),
+    index: z.number().int().min(1).optional(),
+    required: z.boolean().optional(),
+  })
+  .strict();
 
-const htmlScraperSchema = z.object({
-  format: z.literal("html"),
-  fields: z.record(z.string(), fieldSchema),
-});
+const htmlScraperSchema = z
+  .object({
+    format: z.literal("html"),
+    fields: z.record(z.string(), fieldSchema),
+  })
+  .strict();
 
-const jsonScraperSchema = z.object({
-  format: z.literal("json"),
-  fields: z.record(z.string(), jsonFieldSchema),
-});
+const jsonScraperSchema = z
+  .object({
+    format: z.literal("json"),
+    fields: z.record(z.string(), jsonFieldSchema),
+  })
+  .strict();
 
 export const scraperSchema = z.preprocess(
   (value) => {
@@ -49,20 +61,51 @@ export const scraperSchema = z.preprocess(
   z.discriminatedUnion("format", [htmlScraperSchema, jsonScraperSchema]),
 );
 
-export const scrapeSchema = z.object({
-  id: z.string().min(1),
-  selector: z.string().min(1),
-  many: z.boolean().optional().default(true),
-  using: z.string().min(1),
-});
+export const scrapeSchema = z
+  .object({
+    id: z.string().min(1),
+    selector: z.string().min(1),
+    many: z.boolean().optional().default(true),
+    using: z.string().min(1),
+  })
+  .strict();
 
-export const requestSchema = z.object({
-  url: z.string().min(1),
-  method: z.enum(["GET", "POST", "PUT", "DELETE"]),
-  headers: z.record(z.string(), z.string()).optional(),
-  body: z.unknown().optional(),
-  params: z.record(z.string(), z.unknown()).optional(),
-});
+const TIMEOUT_PATTERN = /^([1-9]\d*)(ms|s|m)?$/;
+
+export const timeoutToMs = (timeout: string | number): number => {
+  const match = TIMEOUT_PATTERN.exec(String(timeout));
+  if (!match) {
+    throw new Error(`Invalid timeout "${timeout}"`);
+  }
+  const amount = Number(match[1]);
+  const unit = match[2] ?? "s";
+  if (unit === "ms") {
+    return amount;
+  }
+  if (unit === "s") {
+    return amount * 1000;
+  }
+  if (unit === "m") {
+    return amount * 60_000;
+  }
+  throw new Error(`Invalid timeout "${timeout}"`);
+};
+
+export const requestSchema = z
+  .object({
+    url: z.string().min(1),
+    method: z.enum(["GET", "POST", "PUT", "DELETE"]),
+    headers: z.record(z.string(), z.string()).optional(),
+    body: z.unknown().optional(),
+    params: z.record(z.string(), z.unknown()).optional(),
+    timeout: z
+      .union([
+        z.number().int().min(1),
+        z.string().regex(TIMEOUT_PATTERN, 'must be a duration like "5s"'),
+      ])
+      .optional(),
+  })
+  .strict();
 
 export const primitiveInputTypeSchema = z.enum([
   "string",
@@ -118,32 +161,40 @@ export const paginationSchema = z.discriminatedUnion("next", [
     .strict(),
 ]);
 
-export const stepSchema = z.object({
-  id: z.string().min(1),
-  each: z
-    .string()
-    .regex(/^input\.[a-zA-Z_][\w-]*$/, "must match input.<id>")
-    .optional(),
-  request: requestSchema,
-  scrape: z.array(scrapeSchema).default([]),
-  pagination: paginationSchema.optional(),
-  output: z.string().min(1).optional(),
-});
+export const stepSchema = z
+  .object({
+    id: z.string().min(1),
+    each: z
+      .string()
+      .regex(/^input\.[a-zA-Z_][\w-]*$/, "must match input.<id>")
+      .optional(),
+    request: requestSchema,
+    scrape: z.array(scrapeSchema).default([]),
+    pagination: paginationSchema.optional(),
+    output: z.string().min(1).optional(),
+  })
+  .strict();
 
-export const workflowOutputSchema = z.object({
-  "use-timestamps": z.boolean().optional().default(false),
-});
+export const workflowOutputSchema = z
+  .object({
+    "use-timestamps": z.boolean().optional().default(false),
+  })
+  .strict();
 
 export const loggingLevelSchema = z.enum(["INFO", "DEBUG"]);
 
-export const loggingSchema = z.object({
-  level: loggingLevelSchema,
-});
+export const loggingSchema = z
+  .object({
+    level: loggingLevelSchema,
+  })
+  .strict();
 
-export const dataSetSchema = z.object({
-  name: z.string().min(1),
-  steps: z.array(stepSchema).min(1),
-});
+export const dataSetSchema = z
+  .object({
+    name: z.string().min(1),
+    steps: z.array(stepSchema).min(1),
+  })
+  .strict();
 
 const reservedInterpIds = new Set(["input", "pagination", "request", "response"]);
 
@@ -158,6 +209,7 @@ export const workflowSchema = z
     output: workflowOutputSchema.optional(),
     logging: loggingSchema.optional(),
   })
+  .strict()
   .superRefine((workflow, ctx) => {
     const scraperIds = new Set(Object.keys(workflow.scrapers));
 

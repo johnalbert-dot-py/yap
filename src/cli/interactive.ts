@@ -14,7 +14,7 @@ import {
 } from "@clack/prompts";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { StepExecutionError, WorkFlowValidationError } from "../error.js";
+import { StepExecutionError, WorkflowValidationError } from "../error.js";
 import {
   countRows,
   createWorkflow,
@@ -136,7 +136,7 @@ const pickAction = async (file: string) =>
   );
 
 const printCliError = (error: unknown) => {
-  if (error instanceof WorkFlowValidationError) {
+  if (error instanceof WorkflowValidationError) {
     log.error(error.message);
     return;
   }

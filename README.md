@@ -14,11 +14,11 @@ A local HTTP-first YAML runtime for fetching HTML or JSON, scraping named fields
 You write the task in YAML. The CLI and the library both call `executeWorkflow`.
 
 > [!NOTE]
-> HTTP only in this PoC. Cheerio parses HTML. There is no browser.
+> HTTP only. Cheerio parses HTML. There is no browser.
 
 ## Why YAP?
 
-- **HTTP-first.** Fetch HTML or JSON, scrape named fields, and paginate from YAML.
+- **HTTP-first.** Fetch HTML or JSON, scrape named fields, and paginate from YAML. Optional `timeout` on a request is a duration like `30s` or `30` (seconds if no unit). Default `30s`.
 - **Declarative YAML.** Scrapers, steps, and fields live in one file.
 - **`yap explain`.** Point at a cell and print the request, step, scraper, and selector that produced it.
 - **Required-field health.** Set `required: true` on a field. After the run, see matched versus attempted, then `degraded` or `failed`.
@@ -46,6 +46,15 @@ npm run yap -- run workflows/examples/web-scraping.dev/products.yaml
 The workflow GETs `https://web-scraping.dev/products`, scrapes product cards, then paginates from page 2 for up to 5 requests and stops when a page returns no items.
 
 JSON prints on stdout. `Saved` paths for the JSON, health, and source files print on stderr.
+
+Then trace a cell and read health:
+
+```bash
+npm run yap -- explain "products.products[0].price"
+npm run yap -- health workflows/examples/web-scraping.dev/products.yaml
+```
+
+A dead root selector with `required: true` is `failed`, not healthy. `yap drift` compares this run's health file to the previous one.
 
 Other examples:
 
@@ -137,6 +146,8 @@ Rows stay plain JSON. The sources sidecar lets you trace a cell to the request, 
 
 ## Know when extraction breaks
 
+![run, explain, dead selector, health and drift](assets/health.gif)
+
 Mark a field `required: true`. After a run, `yap health` prints match counts:
 
 ```text
@@ -172,6 +183,8 @@ yap explain <path>       print where a cell came from
 yap health [file.yaml]   print extraction health
 yap drift [file.yaml]    compare health to the previous run
 ```
+
+HTTP logs follow `logging.level`. INFO records method, url, and redacted headers. It omits `body` and `params`. DEBUG may include `body` and `params` unredacted. Those values can contain secrets.
 
 ## Use YAP as a library
 

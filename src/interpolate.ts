@@ -26,25 +26,38 @@ const stringifyToken = (value: unknown): string => {
   return String(value);
 };
 
-export const interpolate = (value: unknown, ctx: InterpContext): unknown => {
+export const interpolate = (
+  value: unknown,
+  ctx: InterpContext,
+  options: { missing?: "empty" | "throw" } = {},
+): unknown => {
+  const missing = options.missing ?? "empty";
+  const read = (path: string): unknown => {
+    const found = lookup(ctx, path);
+    if (found === undefined && missing === "throw") {
+      throw new Error(`Unresolved interpolation "{{ ${path} }}"`);
+    }
+    return found;
+  };
+
   if (typeof value === "string") {
     const trimmed = value.trim();
     const whole = wholeRe().exec(trimmed);
     if (whole?.[1]) {
-      const found = lookup(ctx, whole[1]);
+      const found = read(whole[1]);
       return found === undefined ? "" : found;
     }
-    return value.replace(tokenRe(), (_match, path: string) => stringifyToken(lookup(ctx, path)));
+    return value.replace(tokenRe(), (_match, path: string) => stringifyToken(read(path)));
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => interpolate(item, ctx));
+    return value.map((item) => interpolate(item, ctx, options));
   }
 
   if (value !== null && typeof value === "object") {
     const out: Record<string, unknown> = {};
     for (const [key, nested] of Object.entries(value)) {
-      out[key] = interpolate(nested, ctx);
+      out[key] = interpolate(nested, ctx, options);
     }
     return out;
   }
