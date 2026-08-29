@@ -486,6 +486,49 @@ data: {}
     expect(error.message).toMatch(/loging|unrecognized/i);
   });
 
+  it("rejects selecter on a field", () => {
+    const error = captureValidationError(`
+version: 1
+name: typo
+scrapers:
+  card:
+    fields:
+      title:
+        selecter: h1
+data:
+  one:
+    name: One
+    steps:
+      - id: open
+        request:
+          method: GET
+          url: https://example.test
+        scrape:
+          - id: cards
+            selector: .card
+            using: card
+`);
+    expect(error.message).toMatch(/selecter|unrecognized/i);
+  });
+
+  it("rejects timout on a request", () => {
+    const error = captureValidationError(`
+version: 1
+name: typo
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: https://example.test
+          timout: 5s
+`);
+    expect(error.message).toMatch(/timout|unrecognized/i);
+  });
+
   it("accepts a request timeout duration", () => {
     const workflow = loadWorkflow(`
 version: 1
