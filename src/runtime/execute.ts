@@ -287,9 +287,22 @@ const executeOnce = async (
         url: req.url,
       });
     }
-    const rows = isJsonScraper(scraper)
-      ? scrapeJsonOp(json(), op, scraper, session.stats)
-      : scrapeOp(html(), op, scraper, session.stats);
+    let rows;
+    try {
+      rows = isJsonScraper(scraper)
+        ? scrapeJsonOp(json(), op, scraper, session.stats)
+        : scrapeOp(html(), op, scraper, session.stats);
+    } catch (cause) {
+      if (cause instanceof StepExecutionError) {
+        throw cause;
+      }
+      throw new StepExecutionError({
+        message: cause instanceof Error ? cause.message : String(cause),
+        stepId: step.id,
+        url: response.url,
+        status: response.status,
+      });
+    }
     items[op.id] = rows;
     recordScrapeRows({
       index: session.sources,
@@ -412,13 +425,21 @@ const executeStepPass = async (
   const max = pagination?.max ?? 1;
 
   for (let iteration = 1; iteration <= max; iteration++) {
-    const req = asHttpRequest(
-      interpolate(
+    let interpolated: unknown;
+    try {
+      interpolated = interpolate(
         step.request,
         requestContext(next, session.stepResults, session.httpByStep, inputs, step.id),
-      ),
-      step.id,
-    );
+        { missing: "throw" },
+      );
+    } catch (cause) {
+      throw new StepExecutionError({
+        message: cause instanceof Error ? cause.message : String(cause),
+        stepId: step.id,
+        url: requestUrl(step.request),
+      });
+    }
+    const req = asHttpRequest(interpolated, step.id);
     const capture: Page = pagination
       ? { includePagination: true, paginationNext: next }
       : { includePagination: false };

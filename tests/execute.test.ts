@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { HttpTransportError, WorkFlowValidationError } from "../src/error.js";
+import { HttpTransportError, StepExecutionError, WorkFlowValidationError } from "../src/error.js";
 import type { HttpClient, HttpRequest } from "../src/http/client.js";
 import { executeWorkflow, type StepHttpLog, type StepProgress } from "../src/runtime/execute.js";
 import { parseHtml } from "../src/scrape/html.js";
@@ -699,6 +699,66 @@ data:
     ).rejects.toMatchObject({
       stepId: "fetch",
       message: expect.stringContaining("Invalid request after interpolation"),
+    });
+  });
+
+  it("rejects a request url with an unresolved interpolation", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: bad-token
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: GET
+          url: "https://example.test/{{ input.tokne }}"
+`);
+    await expect(executeWorkflow(workflow, { http: mockHttp(), parseHtml })).rejects.toBeInstanceOf(
+      StepExecutionError,
+    );
+    await expect(executeWorkflow(workflow, { http: mockHttp(), parseHtml })).rejects.toMatchObject({
+      name: "StepExecutionError",
+      stepId: "hit",
+      message: expect.stringContaining('Unresolved interpolation "{{ input.tokne }}"'),
+    });
+  });
+
+  it("wraps an invalid CSS selector as StepExecutionError", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: bad-selector
+scrapers:
+  card:
+    fields:
+      title:
+        selector: h3
+data:
+  list:
+    name: List
+    steps:
+      - id: page
+        request:
+          method: GET
+          url: https://example.test
+        scrape:
+          - id: cards
+            selector: "[[["
+            using: card
+`);
+    const http: HttpClient = {
+      async request(req) {
+        return { status: 200, url: req.url, bodyText: "<div></div>" };
+      },
+    };
+    await expect(executeWorkflow(workflow, { http, parseHtml })).rejects.toBeInstanceOf(
+      StepExecutionError,
+    );
+    await expect(executeWorkflow(workflow, { http, parseHtml })).rejects.toMatchObject({
+      name: "StepExecutionError",
+      stepId: "page",
     });
   });
 

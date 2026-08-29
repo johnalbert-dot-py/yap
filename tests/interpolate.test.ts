@@ -55,6 +55,12 @@ describe("interpolate", () => {
       }),
     ).toBe("https://example.test/page-2");
   });
+
+  it("throws on a missing path when missing is throw", () => {
+    expect(() => interpolate("{{ input.tokne }}", { input: {} }, { missing: "throw" })).toThrow(
+      'Unresolved interpolation "{{ input.tokne }}"',
+    );
+  });
 });
 
 describe("renderStepOutput", () => {
