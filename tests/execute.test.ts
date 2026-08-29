@@ -947,6 +947,63 @@ describe("HTTP logging", () => {
     expect(entries[0]?.response).toBeUndefined();
   });
 
+  it("omits request body and params at INFO", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: log-demo
+logging:
+  level: INFO
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: POST
+          url: "https://example.test/api"
+          body:
+            token: secret
+          params:
+            q: 1
+`);
+    const entries: StepHttpLog[] = [];
+    await executeWorkflow(workflow, {
+      http: logHttp(),
+      onLog: (entry) => entries.push(entry),
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.request).not.toHaveProperty("body");
+    expect(entries[0]?.request).not.toHaveProperty("params");
+  });
+
+  it("includes request body at DEBUG", async () => {
+    const workflow = loadWorkflow(`
+version: 1
+name: log-demo
+logging:
+  level: DEBUG
+scrapers: {}
+data:
+  one:
+    name: One
+    steps:
+      - id: hit
+        request:
+          method: POST
+          url: "https://example.test/api"
+          body:
+            token: secret
+`);
+    const entries: StepHttpLog[] = [];
+    await executeWorkflow(workflow, {
+      http: logHttp(),
+      onLog: (entry) => entries.push(entry),
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.request.body).toEqual({ token: "secret" });
+  });
+
   it("includes response.bodyText at DEBUG", async () => {
     const workflow = loadWorkflow(logYaml("logging:\n  level: DEBUG\n"));
     const entries: StepHttpLog[] = [];

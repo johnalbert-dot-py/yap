@@ -160,12 +160,12 @@ const redactHeaders = (headers: Record<string, string>): Record<string, string> 
   return next;
 };
 
-const requestLog = (req: HttpRequest): StepHttpLog["request"] => ({
+const requestLog = (req: HttpRequest, level: LoggingLevel): StepHttpLog["request"] => ({
   method: req.method,
   url: req.url,
   ...(req.headers !== undefined ? { headers: redactHeaders(req.headers) } : {}),
-  ...(req.body !== undefined ? { body: req.body } : {}),
-  ...(req.params !== undefined ? { params: req.params } : {}),
+  ...(level === "DEBUG" && req.body !== undefined ? { body: req.body } : {}),
+  ...(level === "DEBUG" && req.params !== undefined ? { params: req.params } : {}),
 });
 
 const emitHttpLog = (
@@ -184,7 +184,7 @@ const emitHttpLog = (
     ts: (deps.now?.() ?? new Date()).toISOString(),
     level,
     stepId,
-    request: requestLog(req),
+    request: requestLog(req, level),
   };
   if (level === "DEBUG" && response) {
     entry.response = response;

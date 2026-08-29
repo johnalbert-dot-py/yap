@@ -182,6 +182,8 @@ yap health [file.yaml]   print extraction health
 yap drift [file.yaml]    compare health to the previous run
 ```
 
+HTTP logs follow `logging.level`. INFO records method, url, and redacted headers. It omits `body` and `params`. DEBUG may include `body` and `params` unredacted. Those values can contain secrets.
+
 ## Use YAP as a library
 
 ```ts
