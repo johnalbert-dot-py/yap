@@ -14,7 +14,7 @@ A local HTTP-first YAML runtime for fetching HTML or JSON, scraping named fields
 You write the task in YAML. The CLI and the library both call `executeWorkflow`.
 
 > [!NOTE]
-> HTTP only in this PoC. Cheerio parses HTML. There is no browser.
+> HTTP only. Cheerio parses HTML. There is no browser.
 
 ## Why YAP?
 
@@ -46,6 +46,15 @@ npm run yap -- run workflows/examples/web-scraping.dev/products.yaml
 The workflow GETs `https://web-scraping.dev/products`, scrapes product cards, then paginates from page 2 for up to 5 requests and stops when a page returns no items.
 
 JSON prints on stdout. `Saved` paths for the JSON, health, and source files print on stderr.
+
+Then trace a cell and read health:
+
+```bash
+npm run yap -- explain "products.products[0].price"
+npm run yap -- health workflows/examples/web-scraping.dev/products.yaml
+```
+
+A dead root selector with `required: true` is `failed`, not healthy. `yap drift` compares this run's health file to the previous one.
 
 Other examples:
 
