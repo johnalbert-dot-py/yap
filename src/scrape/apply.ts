@@ -1,6 +1,6 @@
 import type { HtmlScraper, Scrape } from "../workflow/types.js";
 import type { HtmlDocument, HtmlNode } from "./html.js";
-import { recordScraperRows, type ExtractionStats } from "./health.js";
+import { recordScraperRows, type Stats } from "./health.js";
 
 type Field = HtmlScraper["fields"][string];
 type HtmlFields = { fields: HtmlScraper["fields"] };
@@ -36,7 +36,7 @@ export const scrapeOp = (
   doc: HtmlDocument,
   op: Scrape,
   scraper: HtmlFields,
-  stats?: ExtractionStats,
+  stats?: Stats,
 ): Record<string, unknown>[] => {
   const roots = doc.selectAll(op.selector);
   const selected = op.many ? roots : roots.slice(0, 1);

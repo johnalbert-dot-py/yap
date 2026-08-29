@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import type { ExtractionHealth } from "../scrape/health.js";
-import type { ProvenanceIndex } from "../scrape/provenance.js";
+import type { Health } from "../scrape/health.js";
+import type { Sources } from "../scrape/source.js";
 import type { Logging, WorkflowResult } from "../workflow/types.js";
 
 const pad = (value: number): string => String(value).padStart(2, "0");
@@ -69,7 +69,7 @@ export const resolveHealthPath = ({
     `${outputFileStem(workflowArtifactRel(workflowFile, cwd), useTimestamps, now)}.health.json`,
   );
 
-export const resolveProvenancePath = ({
+export const sourcePath = ({
   workflowFile,
   useTimestamps,
   now,
@@ -78,7 +78,7 @@ export const resolveProvenancePath = ({
   join(
     cwd,
     "output",
-    `${outputFileStem(workflowArtifactRel(workflowFile, cwd), useTimestamps, now)}.provenance.json`,
+    `${outputFileStem(workflowArtifactRel(workflowFile, cwd), useTimestamps, now)}.source.json`,
   );
 
 export const resolveHttpLogPath = ({
@@ -111,13 +111,13 @@ export const writeWorkflowOutput = ({
   return filePath;
 };
 
-export const writeExtractionHealth = ({
+export const writeHealth = ({
   workflowFile,
   health,
   useTimestamps,
   now,
   cwd,
-}: ArtifactPathOptions & { health: ExtractionHealth }): string => {
+}: ArtifactPathOptions & { health: Health }): string => {
   const filePath = resolveHealthPath({ workflowFile, useTimestamps, now, cwd });
   mkdirSync(dirname(filePath), { recursive: true });
   if (existsSync(filePath)) {
@@ -127,15 +127,15 @@ export const writeExtractionHealth = ({
   return filePath;
 };
 
-export const writeProvenance = ({
+export const writeSources = ({
   workflowFile,
-  provenance,
+  sources,
   useTimestamps,
   now,
   cwd,
-}: ArtifactPathOptions & { provenance: ProvenanceIndex }): string => {
-  const filePath = resolveProvenancePath({ workflowFile, useTimestamps, now, cwd });
+}: ArtifactPathOptions & { sources: Sources }): string => {
+  const filePath = sourcePath({ workflowFile, useTimestamps, now, cwd });
   mkdirSync(dirname(filePath), { recursive: true });
-  writeFileSync(filePath, `${JSON.stringify(provenance, null, 2)}\n`, "utf8");
+  writeFileSync(filePath, `${JSON.stringify(sources, null, 2)}\n`, "utf8");
   return filePath;
 };

@@ -996,7 +996,7 @@ data:
     };
     const run = await executeWorkflow(workflow, { http, parseHtml });
     expect(run.data.list.cards).toEqual([{ title: "Laptop" }, { title: "Phone" }]);
-    expect(run.extractionHealth).toEqual({
+    expect(run.health).toEqual({
       status: "healthy",
       fields: [
         {
@@ -1046,8 +1046,8 @@ data:
     };
     const run = await executeWorkflow(workflow, { http, parseHtml });
     expect(run.data.list.cards).toEqual([{ title: "Laptop" }, { title: null }]);
-    expect(run.extractionHealth.status).toBe("degraded");
-    expect(run.extractionHealth.fields).toEqual([
+    expect(run.health.status).toBe("degraded");
+    expect(run.health.fields).toEqual([
       {
         scraperId: "card",
         field: "title",
@@ -1094,8 +1094,8 @@ data:
     };
     const run = await executeWorkflow(workflow, { http, parseHtml });
     expect(run.data.list.cards).toEqual([{ title: null }, { title: null }]);
-    expect(run.extractionHealth.status).toBe("failed");
-    expect(run.extractionHealth.fields[0]).toMatchObject({
+    expect(run.health.status).toBe("failed");
+    expect(run.health.fields[0]).toMatchObject({
       field: "title",
       attempted: 2,
       matched: 0,
@@ -1136,15 +1136,15 @@ data:
       },
     };
     const run = await executeWorkflow(workflow, { http, parseHtml });
-    expect(run.extractionHealth.status).toBe("healthy");
-    expect(run.extractionHealth.fields.map((field) => field.scraperId)).toEqual(["body-text"]);
-    expect(Object.values(run.provenance.cells).map((cell) => cell.scraperId)).toEqual([
+    expect(run.health.status).toBe("healthy");
+    expect(run.health.fields.map((field) => field.scraperId)).toEqual(["body-text"]);
+    expect(Object.values(run.sources.cells).map((cell) => cell.scraperId)).toEqual([
       "body-text",
     ]);
   });
 });
 
-describe("provenance capture", () => {
+describe("source capture", () => {
   it("assigns increasing indexes across paginated HTML pages", async () => {
     const workflow = loadWorkflow(yaml);
     const run = await executeWorkflow(workflow, {
@@ -1156,7 +1156,7 @@ describe("provenance capture", () => {
       { title: "Phone" },
       { title: "Tablet" },
     ]);
-    expect(run.provenance.cells["list_of_cars.cars[0].title"]).toMatchObject({
+    expect(run.sources.cells["list_of_cars.cars[0].title"]).toMatchObject({
       value: "Laptop",
       rawValue: "Laptop",
       stepId: "initial-page",
@@ -1166,9 +1166,9 @@ describe("provenance capture", () => {
       request: { method: "GET", url: "https://example.test/page-1" },
       response: { status: 200, url: "https://example.test/page-1" },
     });
-    expect(run.provenance.cells["list_of_cars.cars[0].title"]?.paginationNext).toBeUndefined();
-    expect(run.provenance.cells["list_of_cars.cars[1].title"]?.value).toBe("Phone");
-    expect(run.provenance.cells["list_of_cars.cars[2].title"]).toMatchObject({
+    expect(run.sources.cells["list_of_cars.cars[0].title"]?.paginationNext).toBeUndefined();
+    expect(run.sources.cells["list_of_cars.cars[1].title"]?.value).toBe("Phone");
+    expect(run.sources.cells["list_of_cars.cars[2].title"]).toMatchObject({
       value: "Tablet",
       stepId: "remaining-pages",
       selector: "h3.card-title a",
@@ -1197,7 +1197,7 @@ data:
       },
     };
     const run = await executeWorkflow(workflow, { http });
-    expect(run.provenance).toEqual({ cells: {} });
+    expect(run.sources).toEqual({ cells: {} });
   });
 
   it("uses the landing URL after a redirect-like response", async () => {
@@ -1233,7 +1233,7 @@ data:
       },
     };
     const run = await executeWorkflow(workflow, { http });
-    expect(run.provenance.cells["site.products[0].title"]).toMatchObject({
+    expect(run.sources.cells["site.products[0].title"]).toMatchObject({
       value: "Shirt",
       selector: "title",
       request: { method: "GET", url: "https://shop.example.test/login" },

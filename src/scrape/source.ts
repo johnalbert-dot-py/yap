@@ -1,4 +1,4 @@
-export type CellProvenance = {
+export type CellSource = {
   path: string;
   value: unknown;
   rawValue: unknown;
@@ -11,8 +11,8 @@ export type CellProvenance = {
   paginationNext?: unknown;
 };
 
-export type ProvenanceIndex = {
-  cells: Record<string, CellProvenance>;
+export type Sources = {
+  cells: Record<string, CellSource>;
 };
 
 export type CellPathParts = {
@@ -30,7 +30,7 @@ type FieldLocator = {
 
 const CELL_PATH = /^([^.]+)\.([^[\]]+)\[(\d+)\]\.(.+)$/;
 
-export const createProvenanceIndex = (): ProvenanceIndex => ({ cells: {} });
+export const emptySources = (): Sources => ({ cells: {} });
 
 export const cellPath = (datasetId: string, scrapeId: string, row: number, field: string): string =>
   `${datasetId}.${scrapeId}[${row}].${field}`;
@@ -69,7 +69,7 @@ export const cellSelector = (field: FieldLocator, opSelector: string): string =>
 };
 
 export const recordScrapeRows = (args: {
-  index: ProvenanceIndex;
+  index: Sources;
   datasetId: string;
   scrapeId: string;
   scraperId: string;
@@ -100,7 +100,7 @@ export const recordScrapeRows = (args: {
     const rowIndex = rowStart + offset;
     for (const [field, spec] of Object.entries(fields)) {
       const path = cellPath(datasetId, scrapeId, rowIndex, field);
-      const cell: CellProvenance = {
+      const cell: CellSource = {
         path,
         value: row[field],
         rawValue: row[field],
@@ -119,7 +119,7 @@ export const recordScrapeRows = (args: {
   }
 };
 
-export const lookupCell = (index: ProvenanceIndex, path: string): CellProvenance | undefined =>
+export const lookupCell = (index: Sources, path: string): CellSource | undefined =>
   index.cells[path];
 
 const displayValue = (value: unknown): string => {
@@ -130,7 +130,7 @@ const displayValue = (value: unknown): string => {
   return encoded === undefined ? "undefined" : encoded;
 };
 
-export const formatCell = (cell: CellProvenance): string =>
+export const formatCell = (cell: CellSource): string =>
   [
     cell.path,
     "",

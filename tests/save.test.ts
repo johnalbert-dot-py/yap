@@ -6,13 +6,13 @@ import {
   resolveHealthPath,
   resolveHttpLogPath,
   resolveOutputPath,
-  resolveProvenancePath,
+  sourcePath,
   workflowArtifactRel,
-  writeExtractionHealth,
-  writeProvenance,
+  writeHealth,
+  writeSources,
   writeWorkflowOutput,
 } from "../src/cli/save.js";
-import type { ExtractionHealth } from "../src/scrape/health.js";
+import type { Health } from "../src/scrape/health.js";
 import type { WorkflowResult } from "../src/workflow/types.js";
 
 const result: WorkflowResult = {
@@ -32,8 +32,8 @@ describe("workflow artifact paths", () => {
     expect(resolveHealthPath({ workflowFile, useTimestamps: false, now, cwd })).toBe(
       join(cwd, "output/test-site.com/one.health.json"),
     );
-    expect(resolveProvenancePath({ workflowFile, useTimestamps: false, now, cwd })).toBe(
-      join(cwd, "output/test-site.com/one.provenance.json"),
+    expect(sourcePath({ workflowFile, useTimestamps: false, now, cwd })).toBe(
+      join(cwd, "output/test-site.com/one.source.json"),
     );
   });
 
@@ -102,11 +102,11 @@ describe("writeWorkflowOutput", () => {
   });
 });
 
-describe("writeExtractionHealth", () => {
+describe("writeHealth", () => {
   it("writes a sidecar next to the JSON result", () => {
     const cwd = mkdtempSync(join(tmpdir(), "yap-health-"));
     const workflowFile = join(cwd, "workflows/examples/site.test/demo.yaml");
-    const health: ExtractionHealth = {
+    const health: Health = {
       status: "degraded",
       fields: [
         {
@@ -120,7 +120,7 @@ describe("writeExtractionHealth", () => {
       ],
     };
     try {
-      const path = writeExtractionHealth({
+      const path = writeHealth({
         workflowFile,
         health,
         useTimestamps: false,
@@ -137,7 +137,7 @@ describe("writeExtractionHealth", () => {
   it("keeps the previous health file when overwriting", () => {
     const cwd = mkdtempSync(join(tmpdir(), "yap-health-prev-"));
     const workflowFile = join(cwd, "workflows/examples/site.test/demo.yaml");
-    const previous: ExtractionHealth = {
+    const previous: Health = {
       status: "healthy",
       fields: [
         {
@@ -150,7 +150,7 @@ describe("writeExtractionHealth", () => {
         },
       ],
     };
-    const current: ExtractionHealth = {
+    const current: Health = {
       status: "failed",
       fields: [
         {
@@ -164,14 +164,14 @@ describe("writeExtractionHealth", () => {
       ],
     };
     try {
-      writeExtractionHealth({
+      writeHealth({
         workflowFile,
         health: previous,
         useTimestamps: false,
         now,
         cwd,
       });
-      writeExtractionHealth({
+      writeHealth({
         workflowFile,
         health: current,
         useTimestamps: false,
@@ -192,11 +192,11 @@ describe("writeExtractionHealth", () => {
   });
 });
 
-describe("writeProvenance", () => {
+describe("writeSources", () => {
   it("writes a sidecar next to the JSON result", () => {
     const cwd = mkdtempSync(join(tmpdir(), "yap-prov-"));
     const workflowFile = join(cwd, "workflows/examples/site.test/demo.yaml");
-    const provenance = {
+    const sources = {
       cells: {
         "list.cards[0].title": {
           path: "list.cards[0].title",
@@ -212,15 +212,15 @@ describe("writeProvenance", () => {
       },
     };
     try {
-      const path = writeProvenance({
+      const path = writeSources({
         workflowFile,
-        provenance,
+        sources,
         useTimestamps: false,
         now,
         cwd,
       });
-      expect(path).toBe(join(cwd, "output/examples/site.test/demo.provenance.json"));
-      expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(provenance);
+      expect(path).toBe(join(cwd, "output/examples/site.test/demo.source.json"));
+      expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(sources);
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }

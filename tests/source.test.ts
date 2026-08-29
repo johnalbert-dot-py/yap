@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   cellPath,
   cellSelector,
-  createProvenanceIndex,
+  emptySources,
   formatCell,
   lookupCell,
   parseCellPath,
   recordScrapeRows,
-  type CellProvenance,
-} from "../src/scrape/provenance.js";
+  type CellSource,
+} from "../src/scrape/source.js";
 
 describe("cell path", () => {
   it("builds and parses the canonical path", () => {
@@ -38,7 +38,7 @@ describe("cellSelector", () => {
 
 describe("recordScrapeRows", () => {
   it("records one cell per field using concatenated row indexes", () => {
-    const index = createProvenanceIndex();
+    const index = emptySources();
     recordScrapeRows({
       index,
       datasetId: "list_of_cars",
@@ -78,7 +78,7 @@ describe("recordScrapeRows", () => {
   });
 
   it("records nothing for an empty scrape list", () => {
-    const index = createProvenanceIndex();
+    const index = emptySources();
     recordScrapeRows({
       index,
       datasetId: "site",
@@ -97,7 +97,7 @@ describe("recordScrapeRows", () => {
   });
 
   it("omits paginationNext when the step has no pagination", () => {
-    const index = createProvenanceIndex();
+    const index = emptySources();
     recordScrapeRows({
       index,
       datasetId: "list",
@@ -117,7 +117,7 @@ describe("recordScrapeRows", () => {
 });
 
 describe("lookup and format", () => {
-  const cell: CellProvenance = {
+  const cell: CellSource = {
     path: "list_of_cars.cars[17].year",
     value: "2021",
     rawValue: "2021",
@@ -131,7 +131,7 @@ describe("lookup and format", () => {
   };
 
   it("looks up a cell by canonical path", () => {
-    const index = createProvenanceIndex();
+    const index = emptySources();
     index.cells[cell.path] = cell;
     expect(lookupCell(index, cell.path)).toEqual(cell);
     expect(lookupCell(index, "list_of_cars.cars[0].year")).toBeUndefined();

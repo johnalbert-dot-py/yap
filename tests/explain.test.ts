@@ -5,11 +5,11 @@ import { describe, expect, it } from "vitest";
 import {
   ExplainError,
   explainCell,
-  findNewestProvenanceFile,
+  newestSourceFile,
   YAP_EXPLAIN_NO_RUN,
   YAP_EXPLAIN_NOT_FOUND,
 } from "../src/cli/explain.js";
-import type { ProvenanceIndex } from "../src/scrape/provenance.js";
+import type { Sources } from "../src/scrape/source.js";
 
 const cell = {
   path: "list_of_cars.cars[17].year",
@@ -23,34 +23,34 @@ const cell = {
   response: { status: 200, url: "https://example.com/cars?page=4" },
 };
 
-const indexWithYear = (): ProvenanceIndex => ({
+const indexWithYear = (): Sources => ({
   cells: { [cell.path]: cell },
 });
 
-describe("findNewestProvenanceFile", () => {
+describe("newestSourceFile", () => {
   it("picks the newest mtime under output", () => {
     const cwd = mkdtempSync(join(tmpdir(), "yap-explain-"));
     try {
       mkdirSync(join(cwd, "output/examples"), { recursive: true });
-      const older = join(cwd, "output/examples/older.provenance.json");
-      const newer = join(cwd, "output/newer.provenance.json");
+      const older = join(cwd, "output/examples/older.source.json");
+      const newer = join(cwd, "output/newer.source.json");
       writeFileSync(older, JSON.stringify(indexWithYear()));
       writeFileSync(newer, JSON.stringify({ cells: {} }));
       utimesSync(older, new Date("2026-01-01T00:00:00Z"), new Date("2026-01-01T00:00:00Z"));
       utimesSync(newer, new Date("2026-01-02T00:00:00Z"), new Date("2026-01-02T00:00:00Z"));
-      expect(findNewestProvenanceFile(cwd)).toBe(newer);
+      expect(newestSourceFile(cwd)).toBe(newer);
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }
   });
 
-  it("returns undefined when no provenance file exists", () => {
+  it("returns undefined when no source file exists", () => {
     const cwd = mkdtempSync(join(tmpdir(), "yap-explain-"));
     try {
-      expect(findNewestProvenanceFile(cwd)).toBeUndefined();
+      expect(newestSourceFile(cwd)).toBeUndefined();
       mkdirSync(join(cwd, "output"), { recursive: true });
       writeFileSync(join(cwd, "output/demo.json"), "{}");
-      expect(findNewestProvenanceFile(cwd)).toBeUndefined();
+      expect(newestSourceFile(cwd)).toBeUndefined();
     } finally {
       rmSync(cwd, { recursive: true, force: true });
     }
@@ -62,7 +62,7 @@ describe("explainCell", () => {
     const cwd = mkdtempSync(join(tmpdir(), "yap-explain-"));
     try {
       mkdirSync(join(cwd, "output"), { recursive: true });
-      writeFileSync(join(cwd, "output/demo.provenance.json"), JSON.stringify(indexWithYear()));
+      writeFileSync(join(cwd, "output/demo.source.json"), JSON.stringify(indexWithYear()));
       expect(explainCell("list_of_cars.cars[17].year", cwd)).toContain("remaining-pages");
       expect(explainCell("list_of_cars.cars[17].year", cwd)).toContain("2021");
     } finally {
@@ -90,17 +90,17 @@ describe("explainCell", () => {
       mkdirSync(join(cwd, "output/examples/site.test"), { recursive: true });
       mkdirSync(join(cwd, "output/other"), { recursive: true });
       writeFileSync(
-        join(cwd, "output/examples/site.test/demo.provenance.json"),
+        join(cwd, "output/examples/site.test/demo.source.json"),
         JSON.stringify(indexWithYear()),
       );
-      writeFileSync(join(cwd, "output/other/newer.provenance.json"), JSON.stringify({ cells: {} }));
+      writeFileSync(join(cwd, "output/other/newer.source.json"), JSON.stringify({ cells: {} }));
       utimesSync(
-        join(cwd, "output/examples/site.test/demo.provenance.json"),
+        join(cwd, "output/examples/site.test/demo.source.json"),
         new Date("2026-01-01T00:00:00Z"),
         new Date("2026-01-01T00:00:00Z"),
       );
       utimesSync(
-        join(cwd, "output/other/newer.provenance.json"),
+        join(cwd, "output/other/newer.source.json"),
         new Date("2026-01-02T00:00:00Z"),
         new Date("2026-01-02T00:00:00Z"),
       );
@@ -116,7 +116,7 @@ describe("explainCell", () => {
     const cwd = mkdtempSync(join(tmpdir(), "yap-explain-"));
     try {
       mkdirSync(join(cwd, "output"), { recursive: true });
-      writeFileSync(join(cwd, "output/demo.provenance.json"), JSON.stringify(indexWithYear()));
+      writeFileSync(join(cwd, "output/demo.source.json"), JSON.stringify(indexWithYear()));
       try {
         explainCell("list_of_cars.cars[0].year", cwd);
         throw new Error("expected missing path");

@@ -39,7 +39,7 @@ YAP is one Node 22 ESM package named `yap`. You describe a web task in YAML. The
 - TTY prompts or a workflow file on the command line
 - Custom `HttpClient` in the library
 - JSON result on stdout and a path-mirrored output file for CLI runs
-- Per-cell provenance beside the run, with `yap explain`
+- Per-cell source beside the run, with `yap explain`
 
 ## Requirements
 
@@ -66,7 +66,7 @@ npm run yap -- run workflows/examples/web-scraping.dev/products.yaml
 
 The workflow GETs `https://web-scraping.dev/products` and scrapes product cards. A second step paginates from page 2 for up to 5 requests. It stops early when a page returns no items.
 
-On success you should see JSON on stdout, `Saved output/examples/web-scraping.dev/products.json` on stderr, `Saved output/examples/web-scraping.dev/products.health.json` on stderr, `Saved output/examples/web-scraping.dev/products.provenance.json` on stderr, and `Logged logs/examples/web-scraping.dev/products.log` on stderr.
+On success you should see JSON on stdout, `Saved output/examples/web-scraping.dev/products.json` on stderr, `Saved output/examples/web-scraping.dev/products.health.json` on stderr, `Saved output/examples/web-scraping.dev/products.source.json` on stderr, and `Logged logs/examples/web-scraping.dev/products.log` on stderr.
 
 > [!TIP]
 > A file on the command line always prints JSON on stdout. Interactive run (TTY, no file) asks whether to view the result first. Spinner ticks go to stderr only when stderr is a TTY.
@@ -128,7 +128,7 @@ yap drift [file.yaml]
 
 `yap run <file.yaml>` prints JSON on stdout. `Saved <path>` and `Logged <path>` messages go to stderr. Extraction health also goes to stderr: a short table when stderr is a TTY, plus `YAP_EXTRACTION_FAILED` or `YAP_EXTRACTION_DEGRADED` when contracts fail or degrade. Interactive run asks `View result?` before printing JSON. A step or extraction failure in the TTY loop is logged. It does not exit the session.
 
-`yap explain "<dataset>.<scrape>[row].<field>"` finds the newest `*.provenance.json` under `{cwd}/output/` by mtime and prints that cell. Missing run prints `YAP_EXPLAIN_NO_RUN` and exits 1. Missing path prints `YAP_EXPLAIN_NOT_FOUND` and exits 1.
+`yap explain "<dataset>.<scrape>[row].<field>"` finds the newest `*.source.json` under `{cwd}/output/` by mtime and prints that cell. Missing run prints `YAP_EXPLAIN_NO_RUN` and exits 1. Missing path prints `YAP_EXPLAIN_NOT_FOUND` and exits 1.
 
 `yap health` prints the newest `*.health.json` table. Pass a workflow file to scope it. Missing run prints `YAP_HEALTH_NO_RUN` and exits 1. A TTY Run already prints that table on stderr when stderr is a TTY, or when extraction is degraded or failed. The Health action in the TTY loop is the same report plus drift when a previous sidecar exists.
 
@@ -238,7 +238,7 @@ Do not name a scrape id or a step id `input`, `pagination`, `request`, or `respo
 
 ### Output and logging
 
-Every CLI file run writes JSON under `output/`, a health sidecar, and a provenance sidecar next to them. The path mirrors the workflow path below `workflows/` and drops the `.yaml` or `.yml` suffix. For example, `workflows/examples/web-scraping.dev/products.yaml` writes `output/examples/web-scraping.dev/products.json`, `output/examples/web-scraping.dev/products.health.json`, and `output/examples/web-scraping.dev/products.provenance.json`. A workflow outside `workflows/` uses its basename. Stdout is still the row JSON only. A required field that matched 0 times still writes those files, then exits 1.
+Every CLI file run writes JSON under `output/`, a health sidecar, and a source sidecar next to them. The path mirrors the workflow path below `workflows/` and drops the `.yaml` or `.yml` suffix. For example, `workflows/examples/web-scraping.dev/products.yaml` writes `output/examples/web-scraping.dev/products.json`, `output/examples/web-scraping.dev/products.health.json`, and `output/examples/web-scraping.dev/products.source.json`. A workflow outside `workflows/` uses its basename. Stdout is still the row JSON only. A required field that matched 0 times still writes those files, then exits 1.
 
 Root `output` only configures the optional `use-timestamps` boolean, which defaults to `false`:
 
@@ -247,7 +247,7 @@ output:
   use-timestamps: true
 ```
 
-When enabled, YAP appends local `YYYY-MM-DD-HH-mm-ss` to the file stem. JSON, health, provenance, and HTTP logs from the same run share that stem.
+When enabled, YAP appends local `YYYY-MM-DD-HH-mm-ss` to the file stem. JSON, health, source, and HTTP logs from the same run share that stem.
 
 Set `logging.level` to `INFO` or `DEBUG` to write HTTP logs under the matching `logs/` tree. `step.output` is a spinner label template. It is not a dump of every row.
 
@@ -259,21 +259,21 @@ The schema lives in [`src/workflow/schema.ts`](src/workflow/schema.ts).
 import { createFetchClient, executeWorkflow, loadWorkflowFromFile, parseHtml } from "yap";
 
 const workflow = loadWorkflowFromFile("workflows/examples/web-scraping.dev/products.yaml");
-const { data, extractionHealth, provenance } = await executeWorkflow(workflow, {
+const { data, health, sources } = await executeWorkflow(workflow, {
   http: createFetchClient(),
   parseHtml,
 });
 
 console.log(JSON.stringify(data, null, 2));
-console.log(extractionHealth.status);
-console.log(Object.keys(provenance.cells).length);
+console.log(health.status);
+console.log(Object.keys(sources.cells).length);
 ```
 
-`executeWorkflow(workflow, deps)` requires `deps.http`. Pass a custom `HttpClient` when you want to wrap `fetch`. JSON-only workflows can omit `parseHtml`. It returns `{ data, extractionHealth, provenance }`. `data` is the row map. `extractionHealth` is field match counts and `healthy | degraded | failed`. `provenance` is a map of cell paths to source hop, step, scraper, and selector. Rows stay plain values.
+`executeWorkflow(workflow, deps)` requires `deps.http`. Pass a custom `HttpClient` when you want to wrap `fetch`. JSON-only workflows can omit `parseHtml`. It returns `{ data, health, sources }`. `data` is the row map. `health` is field match counts and `healthy | degraded | failed`. `sources` is a map of cell paths to source hop, step, scraper, and selector. Rows stay plain values.
 
 `createFetchClient()` is a session. It stores `Set-Cookie` and sends matching cookies on later requests from that same client. The CLI uses one client per run. A workflow `headers.Cookie` value is sent after the jar cookies. There is no YAML switch to turn the jar off.
 
-The package also exports `loadWorkflow`, `createFetchClient`, `parseHtml`, `parseJson`, `evaluateContracts`, `compareExtractionHealth`, `lookupCell`, `formatCell`, `resolveInputs`, `interpolate`, workflow schemas, workflow types, extraction health types, provenance types, and `HttpTransportError`, `StepExecutionError`, and `WorkFlowValidationError`.
+The package also exports `loadWorkflow`, `createFetchClient`, `parseHtml`, `parseJson`, `toHealth`, `compareHealth`, `lookupCell`, `formatCell`, `resolveInputs`, `interpolate`, workflow schemas, workflow types, health types, source types, and `HttpTransportError`, `StepExecutionError`, and `WorkFlowValidationError`.
 
 ## What this is not
 

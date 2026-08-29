@@ -29,7 +29,7 @@ const usage = () => {
   console.error("  yap inspect <file.yaml>  print a summary");
   console.error("  yap create               write a stub (TTY)");
   console.error("  yap create <name>        write workflows/<name>.yaml");
-  console.error("  yap explain <path>       print provenance for a cell");
+  console.error("  yap explain <path>       print where a cell came from");
   console.error("  yap health [file.yaml]   print extraction health");
   console.error("  yap drift [file.yaml]    compare health to the previous run");
 };
@@ -96,22 +96,22 @@ const main = async () => {
     const progress = process.stderr.isTTY ? createProgressSpinner(process.stderr) : undefined;
     try {
       const cliValues = parseInputArgs(args.slice(2));
-      const { result, extractionHealth, outputPath, healthPath, provenancePath, logPath } =
+      const { result, health, outputPath, healthPath, sourcePath, logPath } =
         await runWorkflowFile(file, {
           onProgress: progress?.onProgress,
           cliValues,
         });
       console.error(`Saved ${outputPath}`);
       console.error(`Saved ${healthPath}`);
-      console.error(`Saved ${provenancePath}`);
+      console.error(`Saved ${sourcePath}`);
       if (logPath) {
         console.error(`Logged ${logPath}`);
       }
-      for (const line of healthStderrLines(extractionHealth, Boolean(process.stderr.isTTY))) {
+      for (const line of healthStderrLines(health, Boolean(process.stderr.isTTY))) {
         console.error(line);
       }
       console.log(JSON.stringify(result, null, 2));
-      const code = processExitCode(extractionHealth.status);
+      const code = processExitCode(health.status);
       if (code !== 0) {
         process.exit(code);
       }

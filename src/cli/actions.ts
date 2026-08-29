@@ -7,14 +7,14 @@ import { resolveInputs } from "../input/resolve.js";
 import type { InputPrompt } from "../input/resolve.js";
 import type { StepHttpLog, StepProgress } from "../runtime/execute.js";
 import { executeWorkflow } from "../runtime/execute.js";
-import type { ExtractionHealth } from "../scrape/health.js";
+import type { Health } from "../scrape/health.js";
 import { parseHtml } from "../scrape/html.js";
 import type { HtmlDocument } from "../scrape/html.js";
-import type { ProvenanceIndex } from "../scrape/provenance.js";
+import type { Sources } from "../scrape/source.js";
 import { loadWorkflowFromFile } from "../workflow/load.js";
 import type { WorkflowResult, WorkflowSchema } from "../workflow/types.js";
 import { createHttpLogSession } from "./http-log.js";
-import { writeExtractionHealth, writeProvenance, writeWorkflowOutput } from "./save.js";
+import { writeHealth, writeSources, writeWorkflowOutput } from "./save.js";
 
 export type RunOptions = {
   onProgress?: (event: StepProgress) => void;
@@ -30,11 +30,11 @@ export type RunOptions = {
 export type RunOutcome = {
   workflow: WorkflowSchema;
   result: WorkflowResult;
-  extractionHealth: ExtractionHealth;
-  provenance: ProvenanceIndex;
+  health: Health;
+  sources: Sources;
   outputPath: string;
   healthPath: string;
-  provenancePath: string;
+  sourcePath: string;
   logPath?: string;
 };
 
@@ -55,8 +55,8 @@ export const runWorkflowFile = async (
   const session = createHttpLogSession(workflow, file, cwd, now);
   const {
     data: result,
-    extractionHealth,
-    provenance,
+    health,
+    sources,
   } = await executeWorkflow(workflow, {
     http: options.http ?? createFetchClient(),
     parseHtml: options.parseHtml ?? parseHtml,
@@ -74,16 +74,16 @@ export const runWorkflowFile = async (
     cwd,
   };
   const outputPath = writeWorkflowOutput({ ...artifact, result });
-  const healthPath = writeExtractionHealth({ ...artifact, health: extractionHealth });
-  const provenancePath = writeProvenance({ ...artifact, provenance });
+  const healthPath = writeHealth({ ...artifact, health });
+  const sourcePath = writeSources({ ...artifact, sources });
   return {
     workflow,
     result,
-    extractionHealth,
-    provenance,
+    health,
+    sources,
     outputPath,
     healthPath,
-    provenancePath,
+    sourcePath,
     logPath: session?.logPath,
   };
 };

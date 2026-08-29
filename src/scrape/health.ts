@@ -3,7 +3,7 @@ export const isMissingExtractedValue = (value: unknown): boolean =>
 
 export type ExtractionStatus = "healthy" | "degraded" | "failed";
 
-export type FieldExtractionStats = {
+export type FieldStats = {
   scraperId: string;
   field: string;
   attempted: number;
@@ -12,19 +12,19 @@ export type FieldExtractionStats = {
   required: boolean;
 };
 
-export type ExtractionHealth = {
+export type Health = {
   status: ExtractionStatus;
-  fields: FieldExtractionStats[];
+  fields: FieldStats[];
 };
 
-export type ExtractionStats = Map<string, FieldExtractionStats>;
+export type Stats = Map<string, FieldStats>;
 
 const fieldKey = (scraperId: string, field: string): string => `${scraperId}\0${field}`;
 
-export const createExtractionStats = (): ExtractionStats => new Map();
+export const emptyStats = (): Stats => new Map();
 
 export const recordScraperRows = (
-  stats: ExtractionStats,
+  stats: Stats,
   scraperId: string,
   fields: Record<string, { required?: boolean }>,
   rows: Record<string, unknown>[],
@@ -54,7 +54,7 @@ export const recordScraperRows = (
   }
 };
 
-const compareFields = (left: FieldExtractionStats, right: FieldExtractionStats): number => {
+const compareFields = (left: FieldStats, right: FieldStats): number => {
   const byScraper = left.scraperId.localeCompare(right.scraperId);
   if (byScraper !== 0) {
     return byScraper;
@@ -62,7 +62,7 @@ const compareFields = (left: FieldExtractionStats, right: FieldExtractionStats):
   return left.field.localeCompare(right.field);
 };
 
-export const evaluateContracts = (stats: ExtractionStats): ExtractionHealth => {
+export const toHealth = (stats: Stats): Health => {
   const fields = [...stats.values()].sort(compareFields);
   let failed = false;
   let degraded = false;
@@ -82,7 +82,7 @@ export const evaluateContracts = (stats: ExtractionStats): ExtractionHealth => {
 
 export const processExitCode = (status: ExtractionStatus): number => (status === "failed" ? 1 : 0);
 
-export const matchRate = (field: FieldExtractionStats): number | undefined => {
+export const matchRate = (field: FieldStats): number | undefined => {
   if (field.attempted === 0) {
     return undefined;
   }
@@ -109,9 +109,9 @@ export type DriftReport = {
 const SEVERE_PREVIOUS = 0.8;
 const SEVERE_CURRENT = 0.2;
 
-export const compareExtractionHealth = (
-  previous: ExtractionHealth,
-  current: ExtractionHealth,
+export const compareHealth = (
+  previous: Health,
+  current: Health,
 ): DriftReport => {
   const previousByKey = new Map(
     previous.fields.map((field) => [fieldKey(field.scraperId, field.field), field]),

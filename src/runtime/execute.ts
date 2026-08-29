@@ -3,17 +3,8 @@ import type { HttpClient, HttpRequest } from "../http/client.js";
 import type { ResolvedInputs } from "../input/resolve.js";
 import { interpolate, renderStepOutput } from "../interpolate.js";
 import { scrapeOp } from "../scrape/apply.js";
-import {
-  createExtractionStats,
-  evaluateContracts,
-  type ExtractionHealth,
-  type ExtractionStats,
-} from "../scrape/health.js";
-import {
-  createProvenanceIndex,
-  recordScrapeRows,
-  type ProvenanceIndex,
-} from "../scrape/provenance.js";
+import { emptyStats, toHealth, type Health, type Stats } from "../scrape/health.js";
+import { emptySources, recordScrapeRows, type Sources } from "../scrape/source.js";
 import type { HtmlDocument } from "../scrape/html.js";
 import { isJsonScraper, parseJson, scrapeJsonOp } from "../scrape/json.js";
 import { requestSchema } from "../workflow/schema.js";
@@ -59,8 +50,8 @@ export type Deps = {
 
 export type WorkflowRun = {
   data: WorkflowResult;
-  extractionHealth: ExtractionHealth;
-  provenance: ProvenanceIndex;
+  health: Health;
+  sources: Sources;
 };
 
 type Buckets = Record<string, Record<string, unknown>[]>;
@@ -74,13 +65,31 @@ type HttpHop = {
   };
 };
 
-type ProvenanceCapture = {
-  index: ProvenanceIndex;
+type Run = {
+  stats: Stats;
+  sources: Sources;
+};
+
+type DatasetRun = Run & {
   datasetId: string;
   buckets: Buckets;
+  stepResults: Record<string, Buckets>;
+  httpByStep: Record<string, HttpHop>;
+};
+
+type Page = {
   includePagination: boolean;
   paginationNext?: unknown;
 };
+
+const openDataset = (run: Run, datasetId: string): DatasetRun => ({
+  stats: run.stats,
+  sources: run.sources,
+  datasetId,
+  buckets: {},
+  stepResults: {},
+  httpByStep: {},
+});
 
 type OnceResult = {
   items: Record<string, Record<string, unknown>[]>;
@@ -169,13 +178,13 @@ const emitHttpLog = (
   deps.onLog(entry);
 };
 
-export const executeOnce = async (
+const executeOnce = async (
   workflow: WorkflowSchema,
   step: Step,
   req: HttpRequest,
   deps: Deps,
-  stats?: ExtractionStats,
-  capture?: ProvenanceCapture,
+  session: DatasetRun,
+  capture: Page,
 ): Promise<OnceResult> => {
   let response;
   try {
@@ -265,26 +274,24 @@ export const executeOnce = async (
       });
     }
     const rows = isJsonScraper(scraper)
-      ? scrapeJsonOp(json(), op, scraper, stats)
-      : scrapeOp(html(), op, scraper, stats);
+      ? scrapeJsonOp(json(), op, scraper, session.stats)
+      : scrapeOp(html(), op, scraper, session.stats);
     items[op.id] = rows;
-    if (capture) {
-      recordScrapeRows({
-        index: capture.index,
-        datasetId: capture.datasetId,
-        scrapeId: op.id,
-        scraperId: op.using,
-        stepId: step.id,
-        opSelector: op.selector,
-        fields: scraper.fields,
-        rows,
-        rowStart: capture.buckets[op.id]?.length ?? 0,
-        request: { method: req.method, url: req.url },
-        response: { status: response.status, url: response.url },
-        paginationNext: capture.paginationNext,
-        includePagination: capture.includePagination,
-      });
-    }
+    recordScrapeRows({
+      index: session.sources,
+      datasetId: session.datasetId,
+      scrapeId: op.id,
+      scraperId: op.using,
+      stepId: step.id,
+      opSelector: op.selector,
+      fields: scraper.fields,
+      rows,
+      rowStart: session.buckets[op.id]?.length ?? 0,
+      request: { method: req.method, url: req.url },
+      response: { status: response.status, url: response.url },
+      paginationNext: capture.paginationNext,
+      includePagination: capture.includePagination,
+    });
     if (rows.length > 0) {
       emptyItems = false;
     }
@@ -381,15 +388,10 @@ const progressLabel = (
 const executeStepPass = async (
   workflow: WorkflowSchema,
   step: Step,
-  buckets: Buckets,
   deps: Deps,
-  stepResults: Record<string, Buckets>,
-  httpByStep: Record<string, HttpHop>,
+  session: DatasetRun,
   inputs: ResolvedInputs,
   emit: (status: StepProgress["status"], percent: number, label: string) => void,
-  stats?: ExtractionStats,
-  provenance?: ProvenanceIndex,
-  datasetId?: string,
 ): Promise<void> => {
   const pagination = step.pagination;
   let next: unknown = pagination ? initialNext(pagination) : undefined;
@@ -397,24 +399,20 @@ const executeStepPass = async (
 
   for (let iteration = 1; iteration <= max; iteration++) {
     const req = asHttpRequest(
-      interpolate(step.request, requestContext(next, stepResults, httpByStep, inputs, step.id)),
+      interpolate(
+        step.request,
+        requestContext(next, session.stepResults, session.httpByStep, inputs, step.id),
+      ),
       step.id,
     );
-    const capture =
-      provenance && datasetId
-        ? {
-            index: provenance,
-            datasetId,
-            buckets,
-            includePagination: Boolean(pagination),
-            ...(pagination ? { paginationNext: next } : {}),
-          }
-        : undefined;
-    const once = await executeOnce(workflow, step, req, deps, stats, capture);
-    concatItems(buckets, once.items);
-    stepResults[step.id] ??= {};
-    concatItems(stepResults[step.id], once.items);
-    httpByStep[step.id] = once.hop;
+    const capture: Page = pagination
+      ? { includePagination: true, paginationNext: next }
+      : { includePagination: false };
+    const once = await executeOnce(workflow, step, req, deps, session, capture);
+    concatItems(session.buckets, once.items);
+    session.stepResults[step.id] ??= {};
+    concatItems(session.stepResults[step.id], once.items);
+    session.httpByStep[step.id] = once.hop;
     emit(
       "tick",
       tickPercent(Boolean(pagination), iteration, max),
@@ -446,16 +444,11 @@ const executeStepPass = async (
   }
 };
 
-export const executeStep = async (
+const executeStep = async (
   workflow: WorkflowSchema,
   step: Step,
-  buckets: Buckets,
   deps: Deps,
-  stepResults: Record<string, Buckets>,
-  httpByStep: Record<string, HttpHop>,
-  stats?: ExtractionStats,
-  provenance?: ProvenanceIndex,
-  datasetId?: string,
+  session: DatasetRun,
 ): Promise<void> => {
   const emit = (status: StepProgress["status"], percent: number, label: string) => {
     deps.onProgress?.({ stepId: step.id, status, percent, label });
@@ -465,19 +458,7 @@ export const executeStep = async (
   try {
     const inputs = deps.inputs ?? {};
     if (!step.each) {
-      await executeStepPass(
-        workflow,
-        step,
-        buckets,
-        deps,
-        stepResults,
-        httpByStep,
-        inputs,
-        emit,
-        stats,
-        provenance,
-        datasetId,
-      );
+      await executeStepPass(workflow, step, deps, session, inputs, emit);
     } else {
       const inputId = step.each.slice("input.".length);
       const items = inputs[inputId];
@@ -492,15 +473,10 @@ export const executeStep = async (
         await executeStepPass(
           workflow,
           step,
-          buckets,
           deps,
-          stepResults,
-          httpByStep,
+          session,
           { ...inputs, [inputId]: item },
           emit,
-          stats,
-          provenance,
-          datasetId,
         );
       }
     }
@@ -511,12 +487,11 @@ export const executeStep = async (
   }
 };
 
-export const executeDataset = async (
+const executeDataset = async (
   workflow: WorkflowSchema,
   datasetId: string,
   deps: Deps,
-  stats?: ExtractionStats,
-  provenance?: ProvenanceIndex,
+  run: Run,
 ): Promise<Record<string, Record<string, unknown>[]>> => {
   const dataset = workflow.data[datasetId];
   if (!dataset) {
@@ -524,23 +499,11 @@ export const executeDataset = async (
       message: `Unknown dataset "${datasetId}"`,
     });
   }
-  const buckets: Buckets = {};
-  const stepResults: Record<string, Buckets> = {};
-  const httpByStep: Record<string, HttpHop> = {};
+  const session = openDataset(run, datasetId);
   for (const step of dataset.steps) {
-    await executeStep(
-      workflow,
-      step,
-      buckets,
-      deps,
-      stepResults,
-      httpByStep,
-      stats,
-      provenance,
-      datasetId,
-    );
+    await executeStep(workflow, step, deps, session);
   }
-  return buckets;
+  return session.buckets;
 };
 
 export const executeWorkflow = async (
@@ -556,10 +519,16 @@ export const executeWorkflow = async (
     }
   }
   const result: WorkflowResult = {};
-  const stats = createExtractionStats();
-  const provenance = createProvenanceIndex();
+  const run: Run = {
+    stats: emptyStats(),
+    sources: emptySources(),
+  };
   for (const datasetId of Object.keys(workflow.data)) {
-    result[datasetId] = await executeDataset(workflow, datasetId, deps, stats, provenance);
+    result[datasetId] = await executeDataset(workflow, datasetId, deps, run);
   }
-  return { data: result, extractionHealth: evaluateContracts(stats), provenance };
+  return {
+    data: result,
+    health: toHealth(run.stats),
+    sources: run.sources,
+  };
 };

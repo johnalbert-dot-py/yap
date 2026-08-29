@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  compareExtractionHealth,
-  createExtractionStats,
-  evaluateContracts,
+  compareHealth,
+  emptyStats,
+  toHealth,
   isMissingExtractedValue,
   processExitCode,
   recordScraperRows,
-  type ExtractionHealth,
+  type Health,
 } from "../src/scrape/health.js";
 import { formatDriftReport, formatHealthReport, healthStderrLines } from "../src/cli/health.js";
 
@@ -21,12 +21,12 @@ describe("extraction health", () => {
   });
 
   it("fails when a required field matches zero times", () => {
-    const stats = createExtractionStats();
+    const stats = emptyStats();
     recordScraperRows(stats, "card", { title: { required: true } }, [
       { title: null },
       { title: "" },
     ]);
-    expect(evaluateContracts(stats)).toEqual({
+    expect(toHealth(stats)).toEqual({
       status: "failed",
       fields: [
         {
@@ -43,28 +43,28 @@ describe("extraction health", () => {
   });
 
   it("degrades when a required field misses some rows", () => {
-    const stats = createExtractionStats();
+    const stats = emptyStats();
     recordScraperRows(stats, "card", { title: { required: true } }, [
       { title: "Laptop" },
       { title: null },
     ]);
-    expect(evaluateContracts(stats).status).toBe("degraded");
+    expect(toHealth(stats).status).toBe("degraded");
     expect(processExitCode("degraded")).toBe(0);
   });
 
   it("stays healthy when required fields are omitted or unused", () => {
-    const stats = createExtractionStats();
+    const stats = emptyStats();
     recordScraperRows(stats, "card", { title: {} }, [{ title: null }]);
-    expect(evaluateContracts(stats).status).toBe("healthy");
-    expect(evaluateContracts(createExtractionStats()).status).toBe("healthy");
+    expect(toHealth(stats).status).toBe("healthy");
+    expect(toHealth(emptyStats()).status).toBe("healthy");
     expect(processExitCode("healthy")).toBe(0);
   });
 });
 
 describe("health stderr", () => {
-  const failed = evaluateContracts(
+  const failed = toHealth(
     (() => {
-      const stats = createExtractionStats();
+      const stats = emptyStats();
       recordScraperRows(stats, "card", { title: { required: true } }, [{ title: null }]);
       return stats;
     })(),
@@ -86,8 +86,8 @@ describe("health stderr", () => {
   });
 });
 
-describe("compareExtractionHealth", () => {
-  const previous: ExtractionHealth = {
+describe("compareHealth", () => {
+  const previous: Health = {
     status: "healthy",
     fields: [
       {
@@ -100,7 +100,7 @@ describe("compareExtractionHealth", () => {
       },
     ],
   };
-  const current: ExtractionHealth = {
+  const current: Health = {
     status: "degraded",
     fields: [
       {
@@ -115,7 +115,7 @@ describe("compareExtractionHealth", () => {
   };
 
   it("marks severe drift when match rate falls from >= 80% to <= 20%", () => {
-    const drift = compareExtractionHealth(previous, current);
+    const drift = compareHealth(previous, current);
     expect(drift.status).toBe("severe");
     expect(drift.fields[0]).toMatchObject({
       scraperId: "car-detail",
@@ -129,8 +129,8 @@ describe("compareExtractionHealth", () => {
   });
 
   it("stays none when rates do not cross the heuristic", () => {
-    expect(compareExtractionHealth(previous, previous).status).toBe("none");
-    expect(formatDriftReport(compareExtractionHealth(previous, previous))).toBe(
+    expect(compareHealth(previous, previous).status).toBe("none");
+    expect(formatDriftReport(compareHealth(previous, previous))).toBe(
       "extraction drift  none",
     );
   });
