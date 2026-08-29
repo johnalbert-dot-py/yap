@@ -9,17 +9,25 @@
 
 A local HTTP-first YAML runtime for fetching HTML or JSON, scraping named fields, paginating, and returning JSON.
 
-![YAP](demo.gif)
+![YAP](assets/demo.gif)
 
-YAP is one Node 22 ESM package named `yap`. You describe a web task in YAML. The engine fetches with `createFetchClient`. It scrapes named fields, paginates, and returns JSON. The CLI and the library share `executeWorkflow`. There is no browser.
+You write the task in YAML. The CLI and the library both call `executeWorkflow`.
 
 > [!NOTE]
-> YAP has no browser in this PoC. It uses HTTP plus Cheerio for HTML or JSON scraping.
+> HTTP only in this PoC. Cheerio parses HTML. There is no browser.
+
+## Why YAP?
+
+- **HTTP-first.** Fetch HTML or JSON, scrape named fields, and paginate from YAML.
+- **Declarative YAML.** Scrapers, steps, and fields live in one file.
+- **`yap explain`.** Point at a cell and print the request, step, scraper, and selector that produced it.
+- **Required-field health.** Set `required: true` on a field. After the run, see matched versus attempted, then `degraded` or `failed`.
+- **`yap drift`.** Compare this run's health to the previous run when a selector starts missing.
 
 ## Requirements
 
 - Node.js 22 or newer
-- npm, pnpm, or bun, for install
+- npm, pnpm, or bun for install
 
 ## Install
 
@@ -29,19 +37,15 @@ YAP is not published to npm. Run it from this repository.
 npm install
 ```
 
-`pnpm install` and `bun install` work the same.
-
 ## First run
-
-Run the checked-in HTML pagination workflow:
 
 ```bash
 npm run yap -- run workflows/examples/web-scraping.dev/products.yaml
 ```
 
-The workflow GETs `https://web-scraping.dev/products` and scrapes product cards. A second step paginates from page 2 for up to 5 requests. It stops early when a page returns no items.
+The workflow GETs `https://web-scraping.dev/products`, scrapes product cards, then paginates from page 2 for up to 5 requests and stops when a page returns no items.
 
-On success you should see JSON on stdout and `Saved` paths on stderr for the JSON, health, and source files.
+JSON prints on stdout. `Saved` paths for the JSON, health, and source files print on stderr.
 
 Other examples:
 
@@ -49,15 +53,9 @@ Other examples:
 - `workflows/examples/pokeapi.co/pokemon-details.yaml` uses JSON scraping, `each`, and the YAML file input `inputs/pokemon.yaml`.
 - `workflows/examples/web-scraping.dev/graphql-reviews.yaml` uses JSON scraping and cursor pagination for a GraphQL request.
 
-```bash
-npm run yap -- inspect workflows/examples/web-scraping.dev/products.yaml
-```
-
-`inspect` prints a summary of the workflow.
-
 ## Write a workflow
 
-This excerpt follows `workflows/examples/web-scraping.dev/products.yaml`:
+This excerpt follows `workflows/examples/web-scraping.dev/products.yaml` and sets `required: true` on `price`.
 
 ```yaml
 version: 1.0
@@ -76,6 +74,7 @@ scrapers:
           value: "href"
       price:
         selector: ".price"
+        required: true
 
 data:
   products:
@@ -107,7 +106,72 @@ data:
             using: product
 ```
 
-The checked-in file also sets `logging`.
+## Trace where data came from
+
+```bash
+npm run yap -- explain "products.products[17].price"
+```
+
+This repo's CLI is `npm run yap --`.
+
+```text
+products.products[17].price
+
+Value:
+$19.99
+
+Source:
+GET https://web-scraping.dev/products?page=3
+
+Step:
+remaining-pages
+
+Scraper:
+product
+
+Selector:
+.price
+```
+
+Rows stay plain JSON. The sources sidecar lets you trace a cell to the request, step, scraper, and selector.
+
+## Know when extraction breaks
+
+Mark a field `required: true`. After a run, `yap health` prints match counts:
+
+```text
+extraction  degraded
+  product.title  342/342 matched
+  product.price  14/342 matched  required
+```
+
+`degraded` means some required values missed. `failed` means a required field matched 0 times.
+
+`yap drift` compares that report to the previous run:
+
+```text
+Possible extraction drift
+  product.price
+  previous  98.0%  (336/342)
+  current   4.1%  (14/342)
+```
+
+## CLI
+
+The package CLI uses these forms:
+
+```text
+yap                      interactive (TTY)
+yap run                  pick a workflow (TTY)
+yap run <file.yaml> [--input name=value]  JSON on stdout
+yap inspect              pick a workflow (TTY)
+yap inspect <file.yaml>  print a summary
+yap create               write a stub (TTY)
+yap create <name>        write workflows/<name>.yaml
+yap explain <path>       print where a cell came from
+yap health [file.yaml]   print extraction health
+yap drift [file.yaml]    compare health to the previous run
+```
 
 ## Use YAP as a library
 
@@ -125,34 +189,21 @@ console.log(health.status);
 console.log(Object.keys(sources.cells).length);
 ```
 
-`executeWorkflow(workflow, deps)` requires `deps.http`. JSON-only workflows can omit `parseHtml`. It returns `{ data, health, sources }`. `data` is the row map. `health` is field match counts and `healthy | degraded | failed`. `sources` is a map of cell paths to source hop, step, scraper, and selector. Rows stay plain values.
+`executeWorkflow` requires `deps.http`. JSON-only workflows can omit `parseHtml`.
 
-## CLI
-
-The package CLI uses these forms:
+## Architecture
 
 ```text
-yap
-yap run
-yap run <file.yaml> [--input name=value]
-yap inspect
-yap inspect <file.yaml>
-yap create
-yap create <name>
-yap explain <path>
-yap health [file.yaml]
-yap drift [file.yaml]
+YAML → validate → runtime → HTTP → extract → data
+                                 ├─ sources
+                                 └─ health → drift
 ```
 
-A file on the command line always prints JSON on stdout. Interactive run with a TTY and no file asks whether to view the result first. Spinner ticks and `Saved` lines go to stderr.
-
-## Internals
-
-Run path, schema, CLI codes, and the file map live in [`docs/architecture.md`](docs/architecture.md).
+[Architecture deep dive](docs/architecture.md)
 
 ## What this is not
 
-YAP is not Crawlee, Playwright Test, Browse AI, or n8n. There is no browser in this PoC. The runtime uses HTTP plus Cheerio for HTML or JSON scraping.
+YAP is not Crawlee, Playwright Test, Browse AI, or n8n.
 
 ## Origin
 
