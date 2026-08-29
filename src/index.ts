@@ -8,28 +8,28 @@ export { parseHtml } from "./scrape/html.js";
 export type { HtmlDocument, HtmlNode } from "./scrape/html.js";
 export { parseJson } from "./scrape/json.js";
 export {
-  compareExtractionHealth,
-  evaluateContracts,
+  compareHealth,
+  toHealth,
   isMissingExtractedValue,
   processExitCode,
 } from "./scrape/health.js";
 export type {
   DriftReport,
-  ExtractionHealth,
+  Health,
   ExtractionStatus,
   FieldDrift,
-  FieldExtractionStats,
+  FieldStats,
 } from "./scrape/health.js";
 export {
   cellPath,
   cellSelector,
-  createProvenanceIndex,
+  emptySources,
   formatCell,
   lookupCell,
   parseCellPath,
   recordScrapeRows,
-} from "./scrape/provenance.js";
-export type { CellPathParts, CellProvenance, ProvenanceIndex } from "./scrape/provenance.js";
+} from "./scrape/source.js";
+export type { CellPathParts, CellSource, Sources } from "./scrape/source.js";
 export { interpolate, renderStepOutput } from "./interpolate.js";
 export { resolveInputs } from "./input/resolve.js";
 export type {

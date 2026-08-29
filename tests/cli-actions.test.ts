@@ -280,11 +280,11 @@ describe("HTTP log files", () => {
       expect(existsSync(join(dir, "logs/log-demo.log"))).toBe(false);
       expect(existsSync(join(dir, "output/log-demo.json"))).toBe(true);
       expect(existsSync(join(dir, "output/log-demo.health.json"))).toBe(true);
-      expect(existsSync(join(dir, "output/log-demo.provenance.json"))).toBe(true);
+      expect(existsSync(join(dir, "output/log-demo.source.json"))).toBe(true);
       expect(outcome.healthPath).toBe(join(dir, "output/log-demo.health.json"));
-      expect(outcome.provenancePath).toBe(join(dir, "output/log-demo.provenance.json"));
-      expect(outcome.extractionHealth.status).toBe("healthy");
-      expect(outcome.provenance.cells["one.page[0].target"]?.value).toBe("hello");
+      expect(outcome.sourcePath).toBe(join(dir, "output/log-demo.source.json"));
+      expect(outcome.health.status).toBe("healthy");
+      expect(outcome.sources.cells["one.page[0].target"]?.value).toBe("hello");
       expect(extras).toEqual([]);
     } finally {
       rmSync(dir, { recursive: true, force: true });

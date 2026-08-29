@@ -4,7 +4,7 @@ import { workflowArtifactRel } from "./save.js";
 
 export const HEALTH_SUFFIX = ".health.json";
 export const PREV_HEALTH_SUFFIX = ".prev.health.json";
-export const PROVENANCE_SUFFIX = ".provenance.json";
+export const SOURCE_SUFFIX = ".source.json";
 
 const TIMESTAMP_TAIL = /-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$/;
 
@@ -26,15 +26,15 @@ const collectFiles = (dir: string, found: string[]): void => {
 
 const sidecarStem = (
   relativePath: string,
-): { stem: string; kind: "health" | "prev" | "provenance" } | undefined => {
+): { stem: string; kind: "health" | "prev" | "source" } | undefined => {
   if (relativePath.endsWith(PREV_HEALTH_SUFFIX)) {
     return { stem: relativePath.slice(0, -PREV_HEALTH_SUFFIX.length), kind: "prev" };
   }
   if (relativePath.endsWith(HEALTH_SUFFIX)) {
     return { stem: relativePath.slice(0, -HEALTH_SUFFIX.length), kind: "health" };
   }
-  if (relativePath.endsWith(PROVENANCE_SUFFIX)) {
-    return { stem: relativePath.slice(0, -PROVENANCE_SUFFIX.length), kind: "provenance" };
+  if (relativePath.endsWith(SOURCE_SUFFIX)) {
+    return { stem: relativePath.slice(0, -SOURCE_SUFFIX.length), kind: "source" };
   }
   return undefined;
 };
@@ -52,7 +52,7 @@ export const matchesWorkflowRel = (stem: string, rel: string): boolean => {
 const outputRelative = (cwd: string, file: string): string =>
   relative(join(cwd, "output"), file).split(sep).join("/");
 
-type SidecarKind = "health" | "prev" | "provenance";
+type SidecarKind = "health" | "prev" | "source";
 
 const listSidecars = (cwd: string, kind: SidecarKind, workflowFile?: string): string[] => {
   const files: string[] = [];
@@ -77,7 +77,7 @@ const listSidecars = (cwd: string, kind: SidecarKind, workflowFile?: string): st
 
 export const newestSidecar = (
   cwd: string,
-  kind: "health" | "provenance",
+  kind: "health" | "source",
   workflowFile?: string,
 ): string | undefined => listSidecars(cwd, kind, workflowFile)[0];
 

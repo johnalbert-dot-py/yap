@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  advanceNext,
-  advancePagination,
-  initialNext,
-  shouldStop,
-} from "../src/runtime/pagination.js";
+import { advancePagination, initialNext, shouldStop } from "../src/runtime/pagination.js";
 
 const pagination = {
   next: "page" as const,
@@ -26,8 +21,14 @@ describe("pagination", () => {
     expect(initialNext(pagination)).toBe(2);
   });
 
-  it("advances by one", () => {
-    expect(advanceNext(2)).toBe(3);
+  it("advances page pagination by one", () => {
+    expect(
+      advancePagination({
+        pagination,
+        current: 2,
+        items: {},
+      }),
+    ).toEqual({ next: 3, stop: false });
   });
 
   it("starts cursor pagination at null", () => {

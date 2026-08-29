@@ -1,6 +1,6 @@
 import { lookup } from "../interpolate.js";
 import type { JsonScraper, Scrape, Scraper } from "../workflow/types.js";
-import { recordScraperRows, type ExtractionStats } from "./health.js";
+import { recordScraperRows, type Stats } from "./health.js";
 
 type JsonField = JsonScraper["fields"][string];
 
@@ -65,7 +65,7 @@ export const scrapeJsonOp = (
   doc: unknown,
   op: Scrape,
   scraper: JsonScraper,
-  stats?: ExtractionStats,
+  stats?: Stats,
 ): Record<string, unknown>[] => {
   const roots = asItems(atPath(doc, op.selector), op.many);
   const rows = roots.map((item) => applyJsonScraper(item, scraper));

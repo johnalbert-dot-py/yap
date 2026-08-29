@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import {
-  compareExtractionHealth,
+  compareHealth,
   type DriftReport,
-  type ExtractionHealth,
+  type Health,
   type ExtractionStatus,
-  type FieldExtractionStats,
+  type FieldStats,
 } from "../scrape/health.js";
 import { healthSnapshotPair, newestSidecar } from "./artifacts.js";
 
@@ -21,7 +21,7 @@ export class HealthError extends Error {
   }
 }
 
-export const formatHealthReport = (health: ExtractionHealth): string => {
+export const formatHealthReport = (health: Health): string => {
   const header = `extraction  ${health.status}`;
   if (health.fields.length === 0) {
     return header;
@@ -47,7 +47,7 @@ export const formatDriftReport = (drift: DriftReport): string => {
   return ["Possible extraction drift", ...rows].join("\n");
 };
 
-export const healthStderrLines = (health: ExtractionHealth, isTTY: boolean): string[] => {
+export const healthStderrLines = (health: Health, isTTY: boolean): string[] => {
   const lines: string[] = [];
   if (health.status === "failed") {
     lines.push("YAP_EXTRACTION_FAILED");
@@ -66,7 +66,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isStatus = (value: unknown): value is ExtractionStatus =>
   value === "healthy" || value === "degraded" || value === "failed";
 
-const isFieldStats = (value: unknown): value is FieldExtractionStats => {
+const isFieldStats = (value: unknown): value is FieldStats => {
   if (!isRecord(value)) {
     return false;
   }
@@ -80,7 +80,7 @@ const isFieldStats = (value: unknown): value is FieldExtractionStats => {
   );
 };
 
-export const readHealthFile = (file: string): ExtractionHealth => {
+export const readHealthFile = (file: string): Health => {
   const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
   if (!isRecord(parsed) || !isStatus(parsed.status)) {
     return { status: "healthy", fields: [] };
@@ -89,7 +89,7 @@ export const readHealthFile = (file: string): ExtractionHealth => {
   return { status: parsed.status, fields };
 };
 
-export const readCurrentHealth = (cwd = process.cwd(), workflowFile?: string): ExtractionHealth => {
+export const readCurrentHealth = (cwd = process.cwd(), workflowFile?: string): Health => {
   const file = newestSidecar(cwd, "health", workflowFile);
   if (!file) {
     throw new HealthError(YAP_HEALTH_NO_RUN);
@@ -105,5 +105,5 @@ export const readDrift = (cwd = process.cwd(), workflowFile?: string): DriftRepo
   if (!pair.previous) {
     throw new HealthError(YAP_DRIFT_NO_PREVIOUS);
   }
-  return compareExtractionHealth(readHealthFile(pair.previous), readHealthFile(pair.current));
+  return compareHealth(readHealthFile(pair.previous), readHealthFile(pair.current));
 };

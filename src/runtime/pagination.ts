@@ -2,19 +2,7 @@ import type { Pagination } from "../workflow/types.js";
 
 type ScrapeItems = Record<string, Record<string, unknown>[]>;
 
-export const advanceNext = (current: number): number => current + 1;
-
-export const initialNext = (pagination: Pagination): unknown => {
-  const paginationNext = pagination.next;
-  if (paginationNext === "page") {
-    return pagination.start;
-  }
-  if (paginationNext === "cursor") {
-    return pagination.start;
-  }
-  const _exhaustive: never = paginationNext;
-  return _exhaustive;
-};
+export const initialNext = (pagination: Pagination): unknown => pagination.start;
 
 export const advancePagination = (args: {
   pagination: Pagination;
@@ -26,7 +14,7 @@ export const advancePagination = (args: {
     if (typeof args.current !== "number") {
       throw new TypeError("Page pagination cursor must be a number");
     }
-    return { next: advanceNext(args.current), stop: false };
+    return { next: args.current + 1, stop: false };
   }
   if (paginationNext === "cursor") {
     const separator = args.pagination.from.indexOf(".");

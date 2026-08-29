@@ -18,11 +18,11 @@ import { StepExecutionError, WorkFlowValidationError } from "../error.js";
 import {
   countRows,
   createWorkflow,
-  inspectWorkflowFile,
   isWorkflowFileBaseName,
   runWorkflowFile,
   summarizeWorkflow,
 } from "./actions.js";
+import { loadWorkflowFromFile } from "../workflow/load.js";
 import { ExplainError, explainCell } from "./explain.js";
 import {
   formatDriftReport,
@@ -157,7 +157,7 @@ const runInteractive = async (file: string) => {
   log.info(`Running ${file}`);
   const progress = createProgressSpinner();
   try {
-    const { workflow, result, extractionHealth, outputPath, healthPath, provenancePath, logPath } =
+    const { workflow, result, health, outputPath, healthPath, sourcePath, logPath } =
       await runWorkflowFile(file, {
         onProgress: progress.onProgress,
         prompt: async (message) =>
@@ -171,14 +171,14 @@ const runInteractive = async (file: string) => {
     log.success(`Ran ${workflow.name} - ${rows} row${rows === 1 ? "" : "s"}`);
     log.info(`Saved ${outputPath}`);
     log.info(`Saved ${healthPath}`);
-    log.info(`Saved ${provenancePath}`);
+    log.info(`Saved ${sourcePath}`);
     if (logPath) {
       log.info(`Logged ${logPath}`);
     }
-    if (extractionHealth.status === "degraded") {
+    if (health.status === "degraded") {
       log.warn("Extraction degraded. A required field missed some rows.");
     }
-    if (extractionHealth.status === "failed") {
+    if (health.status === "failed") {
       log.error("Extraction failed. A required field matched 0 times.");
     }
     const view = unwrap(
@@ -236,7 +236,7 @@ const inspectInteractive = async (file: string) => {
   const spin = spinner();
   spin.start(`Loading ${file}`);
   try {
-    const workflow = await inspectWorkflowFile(file);
+    const workflow = loadWorkflowFromFile(file);
     spin.stop(`Loaded ${workflow.name}`);
     note(summarizeWorkflow(workflow), workflow.name);
   } catch (error) {
