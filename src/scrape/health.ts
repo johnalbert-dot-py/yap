@@ -23,27 +23,43 @@ const fieldKey = (scraperId: string, field: string): string => `${scraperId}\0${
 
 export const emptyStats = (): Stats => new Map();
 
+const ensureField = (
+  stats: Stats,
+  scraperId: string,
+  field: string,
+  required: boolean,
+): FieldStats => {
+  const key = fieldKey(scraperId, field);
+  let entry = stats.get(key);
+  if (!entry) {
+    entry = {
+      scraperId,
+      field,
+      attempted: 0,
+      matched: 0,
+      missing: 0,
+      required,
+    };
+    stats.set(key, entry);
+  }
+  return entry;
+};
+
 export const recordScraperRows = (
   stats: Stats,
   scraperId: string,
   fields: Record<string, { required?: boolean }>,
   rows: Record<string, unknown>[],
 ): void => {
+  if (rows.length === 0) {
+    for (const [field, spec] of Object.entries(fields)) {
+      ensureField(stats, scraperId, field, spec.required === true);
+    }
+    return;
+  }
   for (const row of rows) {
     for (const [field, spec] of Object.entries(fields)) {
-      const key = fieldKey(scraperId, field);
-      let entry = stats.get(key);
-      if (!entry) {
-        entry = {
-          scraperId,
-          field,
-          attempted: 0,
-          matched: 0,
-          missing: 0,
-          required: spec.required === true,
-        };
-        stats.set(key, entry);
-      }
+      const entry = ensureField(stats, scraperId, field, spec.required === true);
       entry.attempted += 1;
       if (isMissingExtractedValue(row[field])) {
         entry.missing += 1;
@@ -67,7 +83,7 @@ export const toHealth = (stats: Stats): Health => {
   let failed = false;
   let degraded = false;
   for (const field of fields) {
-    if (!field.required || field.attempted === 0) {
+    if (!field.required) {
       continue;
     }
     if (field.matched === 0) {
@@ -109,10 +125,7 @@ export type DriftReport = {
 const SEVERE_PREVIOUS = 0.8;
 const SEVERE_CURRENT = 0.2;
 
-export const compareHealth = (
-  previous: Health,
-  current: Health,
-): DriftReport => {
+export const compareHealth = (previous: Health, current: Health): DriftReport => {
   const previousByKey = new Map(
     previous.fields.map((field) => [fieldKey(field.scraperId, field.field), field]),
   );

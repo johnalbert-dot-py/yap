@@ -16,6 +16,7 @@ scrapers:
         selector: ".short-description"
       price:
         selector: ".price"
+        required: true
 
 data:
   products:

@@ -59,6 +59,32 @@ describe("extraction health", () => {
     expect(toHealth(emptyStats()).status).toBe("healthy");
     expect(processExitCode("healthy")).toBe(0);
   });
+
+  it("fails a required field when the scraper ran and returned no rows", () => {
+    const stats = emptyStats();
+    recordScraperRows(stats, "card", { title: { required: true } }, []);
+    expect(toHealth(stats)).toEqual({
+      status: "failed",
+      fields: [
+        {
+          scraperId: "card",
+          field: "title",
+          attempted: 0,
+          matched: 0,
+          missing: 0,
+          required: true,
+        },
+      ],
+    });
+  });
+
+  it("keeps earlier page stats when a later page returns no rows", () => {
+    const stats = emptyStats();
+    recordScraperRows(stats, "card", { title: { required: true } }, [{ title: "Laptop" }]);
+    recordScraperRows(stats, "card", { title: { required: true } }, []);
+    expect(toHealth(stats).status).toBe("healthy");
+    expect(toHealth(stats).fields[0]?.attempted).toBe(1);
+  });
 });
 
 describe("health stderr", () => {
@@ -130,8 +156,6 @@ describe("compareHealth", () => {
 
   it("stays none when rates do not cross the heuristic", () => {
     expect(compareHealth(previous, previous).status).toBe("none");
-    expect(formatDriftReport(compareHealth(previous, previous))).toBe(
-      "extraction drift  none",
-    );
+    expect(formatDriftReport(compareHealth(previous, previous))).toBe("extraction drift  none");
   });
 });
