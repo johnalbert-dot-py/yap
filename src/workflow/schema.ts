@@ -118,17 +118,19 @@ export const paginationSchema = z.discriminatedUnion("next", [
     .strict(),
 ]);
 
-export const stepSchema = z.object({
-  id: z.string().min(1),
-  each: z
-    .string()
-    .regex(/^input\.[a-zA-Z_][\w-]*$/, "must match input.<id>")
-    .optional(),
-  request: requestSchema,
-  scrape: z.array(scrapeSchema).default([]),
-  pagination: paginationSchema.optional(),
-  output: z.string().min(1).optional(),
-});
+export const stepSchema = z
+  .object({
+    id: z.string().min(1),
+    each: z
+      .string()
+      .regex(/^input\.[a-zA-Z_][\w-]*$/, "must match input.<id>")
+      .optional(),
+    request: requestSchema,
+    scrape: z.array(scrapeSchema).default([]),
+    pagination: paginationSchema.optional(),
+    output: z.string().min(1).optional(),
+  })
+  .strict();
 
 export const workflowOutputSchema = z.object({
   "use-timestamps": z.boolean().optional().default(false),
@@ -136,9 +138,11 @@ export const workflowOutputSchema = z.object({
 
 export const loggingLevelSchema = z.enum(["INFO", "DEBUG"]);
 
-export const loggingSchema = z.object({
-  level: loggingLevelSchema,
-});
+export const loggingSchema = z
+  .object({
+    level: loggingLevelSchema,
+  })
+  .strict();
 
 export const dataSetSchema = z.object({
   name: z.string().min(1),
@@ -158,6 +162,7 @@ export const workflowSchema = z
     output: workflowOutputSchema.optional(),
     logging: loggingSchema.optional(),
   })
+  .strict()
   .superRefine((workflow, ctx) => {
     const scraperIds = new Set(Object.keys(workflow.scrapers));
 

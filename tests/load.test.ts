@@ -472,4 +472,16 @@ data:
 `);
     expect(error.message).toContain('reserved step id "request"');
   });
+
+  it("rejects unknown keys on the workflow root", () => {
+    const error = captureValidationError(`
+version: 1
+name: typo
+loging:
+  level: INFO
+scrapers: {}
+data: {}
+`);
+    expect(error.message).toMatch(/loging|unrecognized/i);
+  });
 });
