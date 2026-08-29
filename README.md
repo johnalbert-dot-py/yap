@@ -146,6 +146,8 @@ Rows stay plain JSON. The sources sidecar lets you trace a cell to the request, 
 
 ## Know when extraction breaks
 
+![run, explain, dead selector, health and drift](assets/health.gif)
+
 Mark a field `required: true`. After a run, `yap health` prints match counts:
 
 ```text
